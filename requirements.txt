@@ -1,0 +1,38 @@
+# MUHIIM: Python version
+# - Waxaa lagu talinayaa Python 3.12 ama 3.11.
+# - Python 3.14 mararka qaar wuxuu keenaa `Failed to build gensim` sababtoo ah wheels ma jiraan;
+#   `pip` wuxuu isku dayaa inuu source ka build-gareeyo Windows oo uu ku fashilmo.
+# Hubi: `py -0p`
+
+# Core (asaasiga project-ka)
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+tqdm>=4.66
+
+# Notebooks / EDA (Jupyter + sawir/plots)
+jupyterlab>=4.0
+ipykernel>=6.0
+matplotlib>=3.7
+seaborn>=0.13
+plotly>=5.20
+
+# Preprocessing (nadiifin qoraal + diyaarinta features)
+regex>=2023.12.25
+nltk>=3.8
+scikit-learn>=1.3
+
+# Traditional ML + embeddings (TF‑IDF/word vectors, iwm)
+gensim>=4.3
+xgboost>=2.0
+
+# Transformers (Haddii torch dhibaato ka jiro Windows, marka hore PyTorch rakib)
+transformers>=4.40
+tokenizers>=0.15
+datasets>=2.18
+evaluate>=0.4.2
+accelerate>=0.30
+
+# XAI (Sharaxaad/Interpretability: SHAP & LIME)
+shap>=0.45
+lime>=0.2.0.1

@@ -1,0 +1,38 @@
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.pyd
+.pytest_cache/
+.ruff_cache/
+
+# Virtual env
+.venv/
+venv/
+ENV/
+env/
+
+# Model weights / checkpoints (waa weyn — GitHub kama qabto)
+models/transformers/checkpoints/
+models/deep_learning/training_logs/
+*.bin
+*.pt
+*.ckpt
+*.onnx
+
+# Data (haddii weyn tahay)
+data/raw/
+data/**/.*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

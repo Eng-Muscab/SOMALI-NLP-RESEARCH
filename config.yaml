@@ -1,70 +1,39 @@
 project:
   name: somali-nlp-research
-  experiment_name: baseline
-  seed: 42
+  seed: 42            # split-ka si uu mar walba isku mid u noqdo
 
 paths:
-  data_raw: data/raw/dataset.csv
-  data_annotations: data/annotations/label_verification.csv
+  data_raw: data/raw/full_dataset.csv
   data_processed_dir: data/processed
-  figures_eda_dir: eda/figures
-  figures_eval_dir: evaluation/figures
-  results_dir: results
-  transformers_checkpoints_dir: models/transformers/checkpoints
-  dl_logs_dir: models/deep_learning/training_logs
+  data_annotations_dir: data/annotations
 
 data:
-  text_column: text
-  label_column: label
+  # labeled dataset aad ku shaqaynayso (AI vs HUMAN)
+  dataset_labeled: data/annotations/labeled_ai_human.csv
+
+  # columns-ka saxda ah ee file-kaas
+  text_column: Text
+  label_column: Label
+
+  # outputs
   train_file: clean_train.csv
   val_file: clean_val.csv
   test_file: clean_test.csv
+
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  stratify: true      # AI/HUMAN ratio ha ilaaliyo splits
 
 preprocessing:
   lowercase: true
   normalize_whitespace: true
   remove_urls: true
   remove_emails: true
-  remove_numbers: false
-  remove_punctuation: false
-  keep_diacritics: true
-  min_token_length: 1
 
 tokenization:
+  model_name: xlm-roberta-base
   max_length: 256
   truncation: true
   padding: max_length
-
-traditional_ml:
-  vectorizer: tfidf   # options: tfidf, count
-  ngram_range: [1, 2]
-  max_features: 50000
-  classifier: linear_svm  # options: linear_svm, logistic_regression, naive_bayes
-
-deep_learning:
-  batch_size: 32
-  epochs: 10
-  learning_rate: 0.001
-  embedding_dim: 300
-  lstm_hidden_size: 128
-  dropout: 0.3
-
-transformers:
-  model_name: xlm-roberta-base
-  num_labels: null   # set to an int when labels are finalized
-  batch_size: 16
-  epochs: 3
-  learning_rate: 2.0e-5
-  weight_decay: 0.01
-  warmup_ratio: 0.1
-  fp16: true
-  save_best: true
-
-evaluation:
-  average: macro       # options: macro, micro, weighted
-  metrics: [accuracy, precision, recall, f1]
-  confusion_matrix: true
-
-xai:
-  enabled: true
-  methods: [shap, lime]

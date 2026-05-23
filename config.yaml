@@ -6,6 +6,8 @@ paths:
   data_raw: data/raw/full_dataset.csv
   data_processed_dir: data/processed
   data_annotations_dir: data/annotations
+  eda_figures_dir: eda/figures
+  traditional_ml_results_dir: models/traditional_ml/results
 
 data:
   # labeled dataset aad ku shaqaynayso (AI vs HUMAN)

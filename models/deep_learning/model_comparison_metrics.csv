@@ -1,0 +1,4 @@
+Model Name,Accuracy,Precision,Recall,F1-Score
+BiLSTM + FastText,80.08%,0.8235,0.7726,0.7972
+BiLSTM + Word2Vec,91.10%,0.9115,0.9130,0.9123
+Fine-tuned mBERT,76.69%,0.8949,0.6120,0.7269

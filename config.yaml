@@ -8,6 +8,8 @@ paths:
   data_annotations_dir: data/annotations
   eda_figures_dir: eda/figures
   traditional_ml_results_dir: models/traditional_ml/results
+  deep_learning_logs_dir: models/deep_learning/training_logs
+  deep_learning_checkpoints_dir: models/deep_learning/checkpoints
 
 data:
   # labeled dataset aad ku shaqaynayso (AI vs HUMAN)
@@ -39,3 +41,17 @@ tokenization:
   max_length: 256
   truncation: true
   padding: max_length
+
+deep_learning:
+  max_tokens: 30000
+  embedding_dim: 200
+  lstm_units_1: 128
+  lstm_units_2: 64
+  dropout_1: 0.5
+  dropout_2: 0.3
+  dense_units: 64
+  batch_size: 64
+  epochs: 8
+  patience: 2
+  learning_rate: 0.001
+  trainable_embeddings: false

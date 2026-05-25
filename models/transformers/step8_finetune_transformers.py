@@ -152,8 +152,13 @@ def tokenize_dataset(ds: Dataset, tokenizer: AutoTokenizer, max_len: int) -> Dat
 
 
 def build_training_args(output_dir: Path, cfg_tf: Dict, seed: int) -> TrainingArguments:
-    kwargs = {
-        "output_dir": output_dir.as_posix(),
+    params = inspect.signature(TrainingArguments.__init__).parameters
+    kwargs: Dict[str, object] = {}
+
+    # Always required in every known Transformers version.
+    kwargs["output_dir"] = output_dir.as_posix()
+
+    candidate_kwargs = {
         "overwrite_output_dir": True,
         "learning_rate": float(cfg_tf["learning_rate"]),
         "weight_decay": float(cfg_tf["weight_decay"]),
@@ -175,11 +180,16 @@ def build_training_args(output_dir: Path, cfg_tf: Dict, seed: int) -> TrainingAr
         "fp16": bool(cfg_tf["fp16"]),
     }
 
-    params = inspect.signature(TrainingArguments.__init__).parameters
+    # Filter unknown kwargs to stay compatible with both old/new Transformers APIs.
+    for key, value in candidate_kwargs.items():
+        if key in params:
+            kwargs[key] = value
+
     if "eval_strategy" in params:
         kwargs["eval_strategy"] = "epoch"
-    else:
+    elif "evaluation_strategy" in params:
         kwargs["evaluation_strategy"] = "epoch"
+
     return TrainingArguments(**kwargs)
 
 
@@ -303,16 +313,21 @@ def train_one_model(
     if patience > 0:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=patience))
 
-    trainer = Trainer(
-        model=model,
-        args=args,
-        train_dataset=tok_train,
-        eval_dataset=tok_val,
-        tokenizer=tokenizer,
-        data_collator=collator,
-        compute_metrics=compute_metrics,
-        callbacks=callbacks,
-    )
+    trainer_kwargs = {
+        "model": model,
+        "args": args,
+        "train_dataset": tok_train,
+        "eval_dataset": tok_val,
+        "tokenizer": tokenizer,
+        "data_collator": collator,
+        "compute_metrics": compute_metrics,
+        "callbacks": callbacks,
+    }
+    trainer_params = inspect.signature(Trainer.__init__).parameters
+    filtered_trainer_kwargs = {
+        k: v for k, v in trainer_kwargs.items() if k in trainer_params
+    }
+    trainer = Trainer(**filtered_trainer_kwargs)
 
     try:
         trainer.train()

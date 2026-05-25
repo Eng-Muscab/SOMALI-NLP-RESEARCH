@@ -19,6 +19,7 @@ env/
 
 # Model weights / checkpoints (waa weyn — GitHub kama qabto)
 models/transformers/checkpoints/
+models/transformers/training_logs/
 models/deep_learning/training_logs/
 models/deep_learning/checkpoints/
 *.bin

@@ -1,0 +1,32 @@
+{
+  "best_model": {
+    "experiment": "experiment_1_stopwords_included",
+    "family": "traditional_ml",
+    "model": "LinearSVC_TFIDF",
+    "evaluation_train_rows": 4990,
+    "test_rows": 879,
+    "final_train_rows": 5869,
+    "saved_model_train_scope": "full_dataset",
+    "accuracy": 0.9431171786120592,
+    "precision": 0.9442773464274375,
+    "recall": 0.9431171786120592,
+    "f1": 0.9431058402154748,
+    "macro_f1": 0.9431135709404188
+  },
+  "model_count": 13,
+  "models": [
+    "LinearSVC_TFIDF",
+    "XGBoost_TFIDF",
+    "LogisticRegression_TFIDF",
+    "MiniTransformer_Keras",
+    "BiLSTM_Keras",
+    "RandomForest_TFIDF",
+    "AfriBERTa_FineTuned",
+    "BiLSTM_Word2Vec",
+    "BiLSTM_FastText",
+    "SomBERTa_FineTuned",
+    "AfroXLMR_FineTuned",
+    "XLMRoberta_FineTuned",
+    "mBERT_FineTuned"
+  ]
+}

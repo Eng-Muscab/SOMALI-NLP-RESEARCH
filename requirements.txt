@@ -26,9 +26,13 @@ scikit-learn>=1.3
 gensim>=4.3
 xgboost>=2.0
 
+# Deep learning (BiLSTM + Keras models)
+tensorflow>=2.15
+
 # Transformers (Haddii torch dhibaato ka jiro Windows, marka hore PyTorch rakib)
 transformers>=4.40
 tokenizers>=0.15
+sentencepiece>=0.2.0
 datasets>=2.18
 evaluate>=0.4.2
 accelerate>=0.30

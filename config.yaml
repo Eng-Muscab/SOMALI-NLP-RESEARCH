@@ -1,9 +1,13 @@
 project:
   name: somali-nlp-research
-  seed: 42            # split-ka si uu mar walba isku mid u noqdo
+  seed: 42
 
 paths:
   data_raw: data/raw/full_dataset.csv
+  data_labeled: data/raw/labeled_text.xlsx
+  experiments_dir: experiments
+  experiment_1_dir: experiments/experiment_1_stopwords_included
+  experiment_2_dir: experiments/experiment_2_stopwords_removed
   data_processed_dir: data/processed
   data_annotations_dir: data/annotations
   eda_figures_dir: eda/figures
@@ -14,14 +18,10 @@ paths:
   transformer_checkpoints_dir: models/transformers/checkpoints
 
 data:
-  # labeled dataset aad ku shaqaynayso (AI vs HUMAN)
-  dataset_labeled: data/annotations/labeled_ai_human.csv
-
-  # columns-ka saxda ah ee file-kaas
+  dataset_labeled: data/raw/labeled_text.xlsx
+  supplemental_raw: data/raw/full_dataset.csv
   text_column: Text
   label_column: Label
-
-  # outputs
   train_file: clean_train.csv
   val_file: clean_val.csv
   test_file: clean_test.csv
@@ -30,13 +30,23 @@ split:
   train_ratio: 0.70
   val_ratio: 0.15
   test_ratio: 0.15
-  stratify: true      # AI/HUMAN ratio ha ilaaliyo splits
+  stratify: true
 
 preprocessing:
   lowercase: true
   normalize_whitespace: true
   remove_urls: true
   remove_emails: true
+
+traditional_ml:
+  final_model_train_scope: full_dataset
+  task: binary_ai_vs_human
+  default_models:
+    - LogisticRegression_TFIDF
+    - LinearSVC_TFIDF
+  optional_models:
+    - RandomForest_TFIDF
+    - XGBoost_TFIDF
 
 tokenization:
   model_name: xlm-roberta-base

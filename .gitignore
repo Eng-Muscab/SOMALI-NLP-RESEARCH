@@ -1,44 +1,58 @@
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb_checkpoints
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# Python
+# Python cache & compiled files
 __pycache__/
 *.pyc
 *.pyo
-*.egg-info/
 *.pyd
 .pytest_cache/
 .ruff_cache/
 
-# Virtual env
-.venv/
-venv/
-ENV/
-env/
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb_checkpoints
 
-# Model weights / checkpoints (waa weyn — GitHub kama qabto)
-models/transformers/checkpoints/
-models/transformers/training_logs/
-models/deep_learning/training_logs/
-models/deep_learning/checkpoints/
-*.bin
-*.pt
-*.ckpt
-*.onnx
+# IDE and editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
 
-# Data
-# Haddii aad rabto inaad datasets GitHub geliso, ha ignore-gareyn `data/raw/`.
-# Haddii dataset-ku aad u weyn yahay, markaas ku dar: data/raw/
-data/**/.*
-
-# OS
+# OS-generated files
 .DS_Store
+.DS_Store?
 Thumbs.db
 desktop.ini
 
-# Logs
+# Logs & temp files
 *.log
-
-# Local temp artifacts
 .tmp/
+temp/
+
+# Training logs (TensorBoard, etc.)
+models/transformers/training_logs/
+models/deep_learning/training_logs/
+experiments/*/models/transformers/training_logs/
+experiments/*/models/deep_learning/training_logs/
+
+# Intermediate/heavy training checkpoints (e.g. checkpoint-500, checkpoint-1000, and run/)
+# These directories contain massive optimizer states, gradients, and intermediate weights
+# which are only needed during the active training process, not to use the final models.
+models/transformers/checkpoints/*/run/
+models/transformers/checkpoints/*/checkpoint-*/
+models/deep_learning/checkpoints/*/checkpoint-*/
+experiments/*/models/transformers/*/run/
+experiments/*/models/transformers/*/checkpoint-*/
+
+# BUT do NOT ignore the final/best trained models
+# (These will be tracked via Git LFS as configured in .gitattributes)
+# e.g., the "best" directories for transformers, traditional ML joblibs, and DL keras/embedding models.
+!models/transformers/checkpoints/*/best/
+!experiments/*/models/**/best/

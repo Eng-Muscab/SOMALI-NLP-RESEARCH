@@ -1,0 +1,11 @@
+{
+  "available_columns": [
+    "Text",
+    "Label"
+  ],
+  "annotator_columns_detected": [],
+  "agreement_computed": false,
+  "method": null,
+  "score": null,
+  "note": "Inter-annotator agreement cannot be computed because the labeled dataset does not contain multiple annotator label columns. Only a single `Label` column is available."
+}

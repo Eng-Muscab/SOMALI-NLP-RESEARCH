@@ -1,0 +1,10 @@
+{
+  "rows": 4109,
+  "label_counts": {
+    "AI": 2090,
+    "HUMAN": 2019
+  },
+  "word_count_mean": 316.2058895108299,
+  "word_count_median": 219.0,
+  "word_count_max": 2430
+}

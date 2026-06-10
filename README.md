@@ -1,117 +1,97 @@
 # Somali NLP Research
 
-This repository contains an end-to-end workflow for a Somali NLP research project: data collection → annotation checks → preprocessing → EDA → modeling (traditional ML, deep learning, transformers) → evaluation → explainability (XAI) → results → paper write-up.
+This project is based on the labeled binary dataset in:
 
-## Sharaxaad (Af‑Somali)
+- `data/raw/labeled_text.xlsx`
 
-Repo-gan waa project cilmi‑baaris (research) oo ku saabsan NLP-ga Af‑Somaliga. Ujeedadu waa in la helo hab‑socod dhamaystiran oo laga bilaabo xog ururin ilaa natiijooyin la isbarbar dhigo iyo warqad cilmiyeed (paper).
+The active task is **AI vs HUMAN Somali text classification**. The larger
+`data/raw/full_dataset.csv` is kept as supplemental/reference data, but the supervised labels used
+for model training come from `labeled_text.xlsx`.
 
-## Hab-raac (Team Workflow)
+## Experiments
 
-Waxaan leenahay hab-raac 4 qof ah (Data/Preprocessing → EDA/Traditional ML → Deep Learning/Transformers → Evaluation/XAI/Paper). Qorshaha faahfaahsan eeg: `docs/TEAM_PLAN.md`.
+The two canonical experiment folders are:
 
-## Project Structure
+- `experiments/experiment_1_stopwords_included/`
+- `experiments/experiment_2_stopwords_removed/`
 
-- `data/`
-  - `raw/` original datasets (e.g., `dataset.csv`)
-  - `processed/` cleaned splits (`clean_train.csv`, `clean_val.csv`, `clean_test.csv`)
-      - Train:      4,200  (70%)
-      - Validation:   900  (15%)
-      - Test:      900  (15%)
-  - `annotations/` label checks / verification (`label_verification.csv`)
-- `preprocessing/` notebooks + utilities (e.g., `utils/text_cleaner.py`)
-- `eda/` exploratory analysis + `figures/`
-- `models/`
-  - `traditional_ml/` classic ML baselines + `results/`
-  - `deep_learning/` BiLSTM / FastText / Word2Vec notebooks + `training_logs/`
-  - `transformers/` mBERT/XLM-R/SomBERTa/AfroXLMR/AfriBERTa notebooks + `checkpoints/`
-- `evaluation/` evaluation notebook + `figures/`
-- `xai/` SHAP/LIME notebooks
-- `results/` aggregated comparisons + best-model summary
-- `paper/` research paper draft + `figures/`
+Each experiment contains its own data splits, trained models, evaluation reports, figures, XAI
+outputs, and final result summaries.
 
-## Folders (Sharaxaad Kooban)
+## Dataset
 
-- `data/`: xogta (raw, processed, annotations).
-- `preprocessing/`: nadiifin/diyaarin xog (cleaning), tokenization, iyo tools-ka.
-- `eda/`: falanqayn hordhac (EDA) + sawirro.
-- `models/`: tijaabooyinka moodooyinka (traditional ML, deep learning, transformers).
-- `evaluation/`: qiimeyn (metrics, confusion matrix, iwm) + figures.
-- `xai/`: sharaxaad moodal (SHAP/LIME).
-- `results/`: isbarbardhig dhammaan models + summary-ga best model.
-- `paper/`: qorista warqadda cilmiyeed + figures.
+After cleaning, conflict removal, and duplicate removal:
 
-## Qaybinta Shaqada Team-ka (Branches)
+| Label | Rows |
+|---|---:|
+| AI | 2985 |
+| HUMAN | 2884 |
+| Total | 5869 |
 
-- `qof1-data-preprocessing`: `data/`, `preprocessing/` (xog ururin, annotation check, preprocessing, tokenization).
-- `qof2-eda-ml`: `eda/`, `models/traditional_ml/` (EDA + ML baselines + feature engineering).
-- `qof3-deeplearning`: `models/deep_learning/` (BILSTM/FastText/Word2Vec + training logs).
-- `qof4-evaluation`: `evaluation/`, `results/` (evaluation + isku-dubarid natiijooyin; XAI haddii la qoondeeyo).
+Split layout per experiment:
 
-## Setup
+| Split | Rows |
+|---|---:|
+| Train | 4109 |
+| Validation | 881 |
+| Test | 879 |
+| Full final training set | 5869 |
 
-### Ka hor inta aadan bilaabin (Muhiim)
+Metrics and confusion matrices are computed on the held-out test split. The saved `.joblib` model
+artifacts are then refit on the full dataset (`train + validation + test`) so final models use all
+available labeled rows.
 
-Si aad uga fogaato qaladka `Failed to build gensim` (ama `failed-wheel-build-for-install`), fadlan isticmaal:
+## Rebuild
 
-- **Python 3.12 ama 3.11 (Recommended)**
-- Ha isticmaalin **Python 3.14** waqtigan, sababtoo ah packages qaar (tusaale `gensim`) mararka qaar ma laha wheels diyaar ah, markaas `pip` wuxuu isku dayaa inuu source ka build-gareeyo Windows oo uu ku fashilmo.
-
-Hubi Python versions-ka kuu rakiban:
+Run the complete default experiment pipeline:
 
 ```powershell
-py -0p
+.\.venv\Scripts\python.exe experiments\run_balanced_experiments.py --stage traditional --task label --sampling full
 ```
 
-Haddii aad haysato Python 3.12, hubi version-ka:
+Default models:
+
+- `LogisticRegression_TFIDF`
+- `LinearSVC_TFIDF`
+
+Optional slower models:
 
 ```powershell
-py -3.12 -V
+.\.venv\Scripts\python.exe experiments\run_balanced_experiments.py --stage traditional --task label --sampling full --include-random-forest
+.\.venv\Scripts\python.exe experiments\run_balanced_experiments.py --stage traditional --task label --sampling full --include-xgboost
 ```
 
-### 1) Create a virtual environment
+## Current Full 12-Step Results
 
-Windows (PowerShell):
+The full project runner trains all required model families: baseline ML models, BiLSTM, a
+lightweight transformer, and XLM-R fine-tuning:
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+.\.venv\Scripts\python.exe experiments\run_full_12_steps.py
 ```
 
-### 2) (Optional) Jupyter
+| Experiment | Family | Model | Accuracy | F1 |
+|---|---|---|---:|---:|
+| Stopwords included | Traditional ML | LinearSVC_TFIDF | 0.9431 | 0.9431 |
+| Stopwords removed | Traditional ML | LinearSVC_TFIDF | 0.9329 | 0.9329 |
+| Stopwords included | Transformer | MiniTransformer_Keras | 0.9261 | 0.9261 |
+| Stopwords included | Traditional ML | LogisticRegression_TFIDF | 0.9226 | 0.9224 |
+| Stopwords removed | Traditional ML | LogisticRegression_TFIDF | 0.9215 | 0.9213 |
+| Stopwords removed | Deep Learning | BiLSTM_Keras | 0.9124 | 0.9122 |
+| Stopwords included | Deep Learning | BiLSTM_Keras | 0.9067 | 0.9065 |
+| Stopwords included | Traditional ML | RandomForest_TFIDF | 0.9044 | 0.9040 |
+| Stopwords removed | Traditional ML | XGBoost_TFIDF | 0.9022 | 0.9017 |
+| Stopwords removed | Traditional ML | RandomForest_TFIDF | 0.9010 | 0.9006 |
+| Stopwords included | Traditional ML | XGBoost_TFIDF | 0.8976 | 0.8973 |
+| Stopwords removed | Transformer | MiniTransformer_Keras | 0.8862 | 0.8851 |
+| Stopwords included | Transformer | XLMRoberta_FineTuned | 0.7645 | 0.7642 |
+| Stopwords removed | Transformer | XLMRoberta_FineTuned | 0.7418 | 0.7361 |
 
-```powershell
-jupyter lab
-```
+XLM-R was fine-tuned with CPU-friendly settings: classifier head and final encoder block trainable,
+one epoch, and `max_length=128`.
 
-## Configuration
+Detailed outputs:
 
-Project settings can be stored in `config.yaml` (paths, seeds, model names, etc.). You can keep it simple and edit as needed for your experiments.
-
-Talo (Af‑Somali): `config.yaml` ku qor *paths* iyo *settings* si team-ku u wada isticmaalo hal meel (reproducible), halkii notebook walba laga kala qori lahaa.
-
-## Recommended Workflow (Notebooks)
-
-1. `preprocessing/01_data_collection.ipynb`
-2. `preprocessing/02_annotation_check.ipynb`
-3. `preprocessing/03_preprocessing.ipynb`
-4. `eda/04_eda.ipynb`
-5. `models/traditional_ml/05_traditional_ml.ipynb`
-6. `models/deep_learning/06_bilstm.ipynb`, `06_fasttext.ipynb`, `06_word2vec.ipynb`
-7. `preprocessing/07_tokenization.ipynb`
-8. `models/transformers/08_*.ipynb`
-9. `evaluation/09_evaluation.ipynb`
-10. `xai/10_shap.ipynb`, `xai/10_lime.ipynb`
-
-## Outputs
-
-- Place plots in each module’s `figures/` folder.
-- Save transformer checkpoints in `models/transformers/checkpoints/`.
-- Summaries and comparisons go in `results/`.
-
-## Notes
-
-- Large files (datasets, checkpoints) should typically be ignored by git or stored via external storage.
-- If you face Windows install issues for `torch`/`transformers`, install PyTorch first (matching your CUDA/CPU), then install the remaining requirements.
+- `experiments/experiment_1_stopwords_included/results/`
+- `experiments/experiment_2_stopwords_removed/results/`
+- `experiments/full_12_step_run_summary.json`

@@ -1,0 +1,54 @@
+{
+  "dataset": {
+    "raw_rows": 6000,
+    "task": "label",
+    "label_description": "binary labels: AI, HUMAN",
+    "invalid_or_empty_rows": 3,
+    "ambiguous_duplicate_rows_removed": 4,
+    "same_label_duplicate_rows_removed": 124,
+    "dataset_rows": 5869,
+    "label_counts": {
+      "AI": 2985,
+      "HUMAN": 2884
+    }
+  },
+  "experiment": {
+    "description": "Clean text with selected Somali function words removed.",
+    "config": "experiments\\experiment_2_stopwords_removed\\config.yaml",
+    "splits": {
+      "train": {
+        "rows": 4109,
+        "label_counts": {
+          "AI": 2090,
+          "HUMAN": 2019
+        },
+        "ai_type_counts": {
+          "AI": 2090,
+          "HUMAN": 2019
+        }
+      },
+      "val": {
+        "rows": 881,
+        "label_counts": {
+          "AI": 448,
+          "HUMAN": 433
+        },
+        "ai_type_counts": {
+          "AI": 448,
+          "HUMAN": 433
+        }
+      },
+      "test": {
+        "rows": 879,
+        "label_counts": {
+          "AI": 447,
+          "HUMAN": 432
+        },
+        "ai_type_counts": {
+          "AI": 447,
+          "HUMAN": 432
+        }
+      }
+    }
+  }
+}

@@ -18,6 +18,53 @@ The two canonical experiment folders are:
 Each experiment contains its own data splits, trained models, evaluation reports, figures, XAI
 outputs, and final result summaries.
 
+## Installation and Setup (For Cloning the Repository)
+
+If you are cloning this repository for the first time, follow these steps to set up the environment and download the trained models:
+
+### 1. Install Git LFS (Large File Storage)
+The trained model weights (e.g., `.safetensors`, `.keras`, `.joblib`, `.model`) are stored using Git LFS.
+- Install Git LFS on your system (if not already installed).
+- Run the following command once in your terminal:
+  ```bash
+  git lfs install
+  ```
+- Clone the repository:
+  ```bash
+  git clone <repository-url>
+  cd somali-nlp-research
+  ```
+- If the model files did not download automatically during cloning, run the following to pull them:
+  ```bash
+  git lfs pull
+  ```
+
+### 2. Create a Virtual Environment
+It is highly recommended to use a local virtual environment:
+```bash
+# Create the environment
+python -m venv .venv
+
+# Activate it:
+# On Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+
+# On macOS/Linux:
+source .venv/bin/activate
+```
+
+### 3. Install Dependencies
+Install all required Python libraries:
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Verify Model Setup
+You can run the model evaluation script to verify that the models have loaded and run correctly:
+```bash
+python experiments/reevaluate_saved_models.py
+```
+
 ## Dataset
 
 After cleaning, conflict removal, and duplicate removal:

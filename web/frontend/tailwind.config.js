@@ -1,0 +1,117 @@
+import plugin from 'tailwindcss/plugin'
+
+export default {
+    content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+    darkMode: 'class',
+    theme: {
+        extend: {
+            colors: {
+                primary: {
+                    50: '#f0f9ff',
+                    100: '#e0f2fe',
+                    200: '#bae6fd',
+                    300: '#7dd3fc',
+                    400: '#38bdf8',
+                    500: '#0ea5e9',
+                    600: '#0284c7',
+                    700: '#0369a1',
+                    800: '#075985',
+                    900: '#0c3d66',
+                },
+                accent: {
+                    50: '#f0fdf4',
+                    100: '#dcfce7',
+                    200: '#bbf7d0',
+                    300: '#86efac',
+                    400: '#4ade80',
+                    500: '#22c55e',
+                    600: '#16a34a',
+                    700: '#15803d',
+                    800: '#166534',
+                    900: '#145231',
+                },
+                neutral: {
+                    50: '#f9fafb',
+                    100: '#f3f4f6',
+                    200: '#e5e7eb',
+                    300: '#d1d5db',
+                    400: '#9ca3af',
+                    500: '#6b7280',
+                    600: '#4b5563',
+                    700: '#374151',
+                    800: '#1f2937',
+                    900: '#111827',
+                },
+            },
+            fontFamily: {
+                sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            },
+            boxShadow: {
+                xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                base: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                sm: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                md: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                lg: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                xl: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            },
+            spacing: {
+                13: '3.25rem',
+                15: '3.75rem',
+                17: '4.25rem',
+                18: '4.5rem',
+                19: '4.75rem',
+                21: '5.25rem',
+                22: '5.5rem',
+                23: '5.75rem',
+                25: '6.25rem',
+                26: '6.5rem',
+                27: '6.75rem',
+                28: '7rem',
+                29: '7.25rem',
+                30: '7.5rem',
+                31: '7.75rem',
+                32: '8rem',
+            },
+            borderRadius: {
+                lg: '0.5rem',
+                xl: '0.75rem',
+                '2xl': '1rem',
+            },
+            opacity: {
+                5: '0.05',
+                10: '0.1',
+                15: '0.15',
+                20: '0.2',
+                25: '0.25',
+            },
+            transitionDuration: {
+                150: '150ms',
+                200: '200ms',
+                250: '250ms',
+                300: '300ms',
+                350: '350ms',
+                400: '400ms',
+                450: '450ms',
+                500: '500ms',
+            },
+        },
+    },
+    plugins: [
+        plugin(({ addUtilities }) => {
+            addUtilities({
+                '.truncate-lines-2': {
+                    display: '-webkit-box',
+                    '-webkit-line-clamp': '2',
+                    '-webkit-box-orient': 'vertical',
+                    overflow: 'hidden',
+                },
+                '.truncate-lines-3': {
+                    display: '-webkit-box',
+                    '-webkit-line-clamp': '3',
+                    '-webkit-box-orient': 'vertical',
+                    overflow: 'hidden',
+                },
+            })
+        }),
+    ],
+}

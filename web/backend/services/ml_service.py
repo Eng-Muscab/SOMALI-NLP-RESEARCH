@@ -34,20 +34,23 @@ class MLService:
         self.model_paths = {}
         self.load_errors = {}
 
-        for path in self._discover_linear_svc_artifacts():
+        for path in self._discover_model_artifacts():
             key = self._model_key(path)
             self._load_artifact(path, key)
 
         if self.models and "linear_svc_tfidf" not in self.models:
-            first_key = next(iter(self.models))
-            self.models["linear_svc_tfidf"] = self.models[first_key]
-            self.model_paths["linear_svc_tfidf"] = self.model_paths[first_key]
+            linear_key = next((key for key in self.models if key.endswith("linearsvc_tfidf")), None)
+            if linear_key:
+                self.models["linear_svc_tfidf"] = self.models[linear_key]
+                self.model_paths["linear_svc_tfidf"] = self.model_paths[linear_key]
 
     def list_models(self) -> list[str]:
         return list(self.models.keys())
 
-    def _discover_linear_svc_artifacts(self) -> list[Path]:
-        patterns = ("*LinearSVC*TFIDF*.joblib", "*linear*svc*tfidf*.joblib")
+    def _discover_model_artifacts(self) -> list[Path]:
+        patterns = ["*.joblib"]
+        if settings.load_deep_models:
+            patterns.extend(["*.keras", "model.safetensors", "pytorch_model.bin"])
         candidates: list[Path] = []
 
         if settings.models_dir.exists():
@@ -58,15 +61,47 @@ class MLService:
             for pattern in patterns:
                 candidates.extend(settings.experiments_dir.rglob(pattern))
 
-        return sorted(set(candidates))
+        valid_candidates = []
+        for c in candidates:
+            parts = {part.lower() for part in c.parts}
+            if "tokenizer" in c.name.lower():
+                continue
+            if c.suffix == ".joblib" and "models" not in parts:
+                continue
+            valid_candidates.append(c)
+
+        return sorted(set(valid_candidates))
 
     def _load_artifact(self, path: Path, key: str) -> None:
         try:
-            model = joblib.load(path)
-            if not hasattr(model, "predict"):
-                raise TypeError("Artifact does not expose a predict method")
-            self.models[key] = model
-            self.model_paths[key] = str(path)
+            if path.suffix == ".joblib":
+                model = joblib.load(path)
+                if not hasattr(model, "predict"):
+                    raise TypeError("Artifact does not expose a predict method")
+                self.models[key] = {"type": "sklearn", "model": model}
+                self.model_paths[key] = str(path)
+            elif path.suffix == ".keras":
+                import tensorflow as tf
+                custom_objects = {}
+                try:
+                    from experiments.run_full_12_steps import TransformerBlock
+
+                    custom_objects["TransformerBlock"] = TransformerBlock
+                except Exception:
+                    pass
+                model = tf.keras.models.load_model(
+                    path,
+                    compile=False,
+                    custom_objects=custom_objects or None,
+                )
+                self.models[key] = {"type": "keras", "model": model}
+                self.model_paths[key] = str(path)
+            elif path.name in ["model.safetensors", "pytorch_model.bin"]:
+                from transformers import pipeline
+                model = pipeline("text-classification", model=str(path.parent))
+                key = self._model_key(path.parent)
+                self.models[key] = {"type": "transformers", "model": model}
+                self.model_paths[key] = str(path)
         except Exception as exc:
             self.load_errors[str(path)] = str(exc)
             logger.exception("Failed to load model artifact %s", path)
@@ -83,19 +118,57 @@ class MLService:
 
     def predict(self, text: str, model_key: str | None = None) -> dict[str, Any]:
         if not self.models:
-            raise NoModelsLoadedError("No LinearSVC TF-IDF models are loaded")
+            raise NoModelsLoadedError("No models are loaded")
         if model_key is None:
             model_key = next(iter(self.models.keys()))
         model_key = model_key.strip().lower()
-        model = self.models.get(model_key)
-        if model is None:
+        model_data = self.models.get(model_key)
+        
+        if model_data is None:
             raise ModelNotFoundError(f"Model '{model_key}' was not found")
 
         try:
             input_values = [text]
-            prediction = str(model.predict(input_values)[0])
-            probabilities = self._probabilities(model, input_values, prediction)
-            confidence = max(probabilities.values()) if probabilities else None
+            model_type = model_data["type"]
+            model = model_data["model"]
+
+            if model_type == "sklearn":
+                raw_pred = model.predict(input_values)[0]
+                prediction = self._map_prediction(model_type, raw_pred)
+                probabilities = self._probabilities(model, input_values, prediction)
+                confidence = max(probabilities.values()) if probabilities else None
+            elif model_type == "keras":
+                import joblib
+                from tensorflow.keras.preprocessing.sequence import pad_sequences
+                
+                experiment_dir = Path(self.model_paths[model_key]).parents[2]
+                tokenizer_path = experiment_dir / "data" / "tokenizer.joblib"
+                
+                if tokenizer_path.exists():
+                    tok_meta = joblib.load(tokenizer_path)
+                    tokenizer = tok_meta["tokenizer"]
+                    max_length = tok_meta["max_length"]
+                    classes = tok_meta.get("classes", ["AI", "HUMAN"])
+                    sequences = tokenizer.texts_to_sequences(input_values)
+                    padded = pad_sequences(sequences, maxlen=max_length, padding="post", truncating="post")
+                    
+                    raw_probs = model.predict(padded, verbose=0)[0]
+                    pred_idx = int(np.argmax(raw_probs))
+                    prediction = self._map_prediction(model_type, classes[pred_idx] if pred_idx < len(classes) else str(pred_idx))
+                    probabilities = {
+                        self._map_prediction(model_type, classes[i] if i < len(classes) else i): float(p)
+                        for i, p in enumerate(raw_probs)
+                    }
+                    confidence = float(np.max(raw_probs))
+                else:
+                    raise InferenceError("Tokenizer not found for Keras model")
+            elif model_type == "transformers":
+                result = model(text)[0]
+                raw_label = result["label"]
+                prediction = self._map_prediction(model_type, raw_label)
+                confidence = float(result["score"])
+                probabilities = {prediction: confidence}
+
             return {
                 "prediction": prediction,
                 "confidence": confidence,
@@ -157,8 +230,33 @@ class MLService:
         probabilities: Any,
     ) -> dict[str, float]:
         return {
-            class_name: round(float(probability), 6)
+            self._map_prediction("sklearn", class_name): round(float(probability), 6)
             for class_name, probability in zip(classes, probabilities)
         }
+
+    def _map_prediction(self, model_type: str, raw_pred: Any) -> str:
+        """Map raw predictions to human‑readable labels.
+        For binary models we assume 0 → AI, 1 → HUMAN.
+        For Keras we may receive either an index or a label string.
+        For Transformers we standardise common label patterns.
+        """
+        if model_type == "sklearn":
+            return "AI" if str(raw_pred) == "0" else "HUMAN"
+        if model_type == "keras":
+            if isinstance(raw_pred, str):
+                return raw_pred
+            return "AI" if int(raw_pred) == 0 else "HUMAN"
+        if model_type == "transformers":
+            label = str(raw_pred).upper()
+            if label in {"LABEL_0", "0"}:
+                return "AI"
+            if label in {"LABEL_1", "1"}:
+                return "HUMAN"
+            if "AI" in label:
+                return "AI"
+            if "HUMAN" in label:
+                return "HUMAN"
+            return label
+        return str(raw_pred)
 
 ml_service = MLService()

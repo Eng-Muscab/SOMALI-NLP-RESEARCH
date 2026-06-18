@@ -10,9 +10,9 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={`
-        bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700
-        shadow-xs transition-all duration-200
-        ${hover ? 'hover:shadow-md hover:border-neutral-300 dark:hover:border-neutral-600 cursor-pointer' : ''}
+        bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200/60 dark:border-neutral-800/80
+        shadow-[0_8px_30px_rgba(0,0,0,0.02)] transition-all duration-300
+        ${hover ? 'hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 hover:border-primary-500/30 dark:hover:border-primary-500/20 cursor-pointer' : ''}
         ${className}
       `}
       {...props}
@@ -29,7 +29,7 @@ interface CardHeaderProps {
 }
 
 export const CardHeader = ({ children, className = '' }: CardHeaderProps) => (
-  <div className={`px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 ${className}`}>
+  <div className={`px-6 py-5 border-b border-neutral-100 dark:border-neutral-800/60 ${className}`}>
     {children}
   </div>
 )
@@ -40,7 +40,7 @@ interface CardContentProps {
 }
 
 export const CardContent = ({ children, className = '' }: CardContentProps) => (
-  <div className={`px-6 py-4 ${className}`}>
+  <div className={`px-6 py-6 ${className}`}>
     {children}
   </div>
 )
@@ -51,7 +51,7 @@ interface CardFooterProps {
 }
 
 export const CardFooter = ({ children, className = '' }: CardFooterProps) => (
-  <div className={`px-6 py-4 border-t border-neutral-200 dark:border-neutral-700 ${className}`}>
+  <div className={`px-6 py-5 border-t border-neutral-100 dark:border-neutral-800/60 ${className}`}>
     {children}
   </div>
 )

@@ -38,7 +38,12 @@ VITE v4.4.9  ready in XXX ms
 
 ## Login Credentials (for testing)
 
-Use any email/password combination to test authentication.
+Use the built-in demo account:
+
+- Email: demo@somalinlp.io
+- Password: Demo12345!
+
+This account is created automatically when the backend starts.
 
 ## Features by Page
 

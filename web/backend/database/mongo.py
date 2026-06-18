@@ -14,6 +14,14 @@ async def connect() -> AsyncIOMotorDatabase:
             serverSelectionTimeoutMS=settings.mongodb_timeout_ms,
         )
         db = client[settings.mongo_db_name]
+
+    try:
+        from ..services.auth_service import ensure_demo_user
+
+        await ensure_demo_user()
+    except Exception:
+        pass
+
     return get_database()
 
 

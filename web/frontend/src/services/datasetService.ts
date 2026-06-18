@@ -1,5 +1,5 @@
 import api from '@services/api'
-import type { DatasetMeta, DatasetPreview } from '@types/dataset'
+import type { DatasetMeta, DatasetPreview } from '@/types/dataset'
 
 export const listDatasets = () => api.get<DatasetMeta[]>('/datasets')
 

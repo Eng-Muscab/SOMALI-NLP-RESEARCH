@@ -1,4 +1,5 @@
 from fastapi import HTTPException, Request, status
+from pymongo.errors import PyMongoError
 
 from ..services.auth_service import get_user_by_id
 
@@ -12,7 +13,13 @@ async def get_current_user(request: Request) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await get_user_by_id(user_id)
+    try:
+        user = await get_user_by_id(user_id)
+    except (RuntimeError, PyMongoError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is unavailable. Please start MongoDB and try again.",
+        ) from exc
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { AlertCircle, CheckCircle, Lock, Mail, UserPlus } from 'lucide-react'
+import { AlertCircle, CheckCircle, UserPlus, User, Mail, Lock } from 'lucide-react'
 import { Card, CardContent } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { useAuth } from '../hooks/useAuth'
+import { getApiErrorMessage } from '../services/api'
+import { useToast } from '../contexts/ToastContext'
 
 const Register = () => {
   const [name, setName] = useState('')
@@ -17,6 +19,7 @@ const Register = () => {
   const [success, setSuccess] = useState('')
   const navigate = useNavigate()
   const { register } = useAuth()
+  const { showToast } = useToast()
 
   const validate = () => {
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
@@ -49,53 +52,58 @@ const Register = () => {
     try {
       await register({ name: name.trim(), email: email.trim(), password })
       setSuccess('Account created successfully. Redirecting to login...')
+      showToast('Account created successfully.', 'success')
       setTimeout(() => navigate('/login', { replace: true }), 1200)
-    } catch (e: any) {
-      setError(e.response?.data?.detail || e.response?.data?.message || 'Registration failed. Please try again.')
+    } catch (e) {
+      const message = getApiErrorMessage(e, 'Registration failed. Please try again.')
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-tr from-neutral-50 via-primary-50/10 to-accent-50/10 dark:from-neutral-950 dark:via-neutral-900/40 dark:to-neutral-950 flex items-center justify-center p-4 transition-colors duration-300">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        <Card className="shadow-2xl">
+        <Card className="shadow-[0_20px_50px_rgba(79,70,229,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-neutral-200/50 dark:border-neutral-800/80">
           <CardContent className="p-8 space-y-6">
-            <div className="text-center space-y-2">
-              <div className="flex justify-center mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-accent-600 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="text-center space-y-3">
+              <div className="flex justify-center mb-2">
+                <div className="w-14 h-14 bg-gradient-to-tr from-primary-600 to-accent-505 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/20">
                   <UserPlus size={24} className="text-white" />
                 </div>
               </div>
-              <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Create your account</h1>
-              <p className="text-neutral-600 dark:text-neutral-400">Register to access Somali NLP research tools.</p>
+              <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-neutral-900 to-neutral-700 dark:from-white dark:to-neutral-300 bg-clip-text text-transparent">
+                Create Account
+              </h1>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">Register for Somali NLP research workspace</p>
             </div>
 
             {error && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center space-x-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center space-x-2.5 p-3.5 bg-red-500/5 dark:bg-red-500/10 border border-red-200/50 dark:border-red-500/20 rounded-xl"
               >
-                <AlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0" size={18} />
-                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                <AlertCircle className="text-red-550 dark:text-red-400 flex-shrink-0" size={18} />
+                <p className="text-sm font-semibold text-red-755 dark:text-red-300 leading-none">{error}</p>
               </motion.div>
             )}
 
             {success && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center space-x-2 p-3 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-lg"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center space-x-2.5 p-3.5 bg-accent-500/5 dark:bg-accent-500/10 border border-accent-200/50 dark:border-accent-500/20 rounded-xl"
               >
-                <CheckCircle className="text-accent-600 dark:text-accent-400 flex-shrink-0" size={18} />
-                <p className="text-sm text-accent-700 dark:text-accent-300">{success}</p>
+                <CheckCircle className="text-accent-550 dark:text-accent-405 flex-shrink-0" size={18} />
+                <p className="text-sm font-semibold text-accent-750 dark:text-accent-300 leading-none">{success}</p>
               </motion.div>
             )}
 
@@ -103,30 +111,34 @@ const Register = () => {
               <Input
                 label="Full Name"
                 type="text"
+                icon={<User size={16} />}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your full name"
+                placeholder="Abdi Farah"
                 disabled={loading}
               />
               <Input
                 label="Email Address"
                 type="email"
+                icon={<Mail size={16} />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 disabled={loading}
               />
               <Input
                 label="Password"
                 type="password"
+                icon={<Lock size={16} />}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
+                placeholder="At least 8 characters"
                 disabled={loading}
               />
               <Input
                 label="Confirm Password"
                 type="password"
+                icon={<Lock size={16} />}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat your password"
@@ -134,14 +146,14 @@ const Register = () => {
               />
             </div>
 
-            <Button onClick={submit} isLoading={loading} disabled={loading} size="lg" className="w-full">
+            <Button onClick={submit} isLoading={loading} disabled={loading} size="lg" className="w-full mt-2 py-2.5">
               Create Account
             </Button>
 
-            <div className="text-center space-y-2 text-sm">
-              <p className="text-neutral-600 dark:text-neutral-400">
+            <div className="text-center space-y-3 text-sm border-t border-neutral-100 dark:border-neutral-800/60 pt-4">
+              <p className="text-neutral-500 dark:text-neutral-400 font-medium">
                 Already have an account?{' '}
-                <Link to="/login" className="text-primary-600 dark:text-primary-400 font-semibold hover:underline">
+                <Link to="/login" className="text-primary-600 dark:text-primary-400 font-bold hover:underline">
                   Sign in
                 </Link>
               </p>

@@ -1,5 +1,6 @@
 export interface PredictPayload {
   text: string
+  model?: string
 }
 
 export interface PredictProbabilities {
@@ -14,6 +15,7 @@ export interface PredictResponse {
   probabilities?: PredictProbabilities
   model?: string
   text?: string
+  historySaved?: boolean
 }
 
 export interface PredictionHistoryItem {

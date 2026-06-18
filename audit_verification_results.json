@@ -1,0 +1,1174 @@
+{
+  "artifacts": [
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "traditional_ml",
+      "model": "LinearSVC_TFIDF",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\traditional_ml\\LinearSVC_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9965870307167235,
+        "precision": 0.9966105684359186,
+        "recall": 0.9965870307167235,
+        "f1": 0.996587189768337,
+        "macro_f1": 0.99658639451027,
+        "confusion_matrix": [
+          [
+            444,
+            3
+          ],
+          [
+            0,
+            432
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9965870307167235,
+          "reported": 0.9431171786120591,
+          "delta": 0.05346985210466437
+        },
+        "precision": {
+          "actual": 0.9966105684359186,
+          "reported": 0.9442773464274375,
+          "delta": 0.052333222008481006
+        },
+        "recall": {
+          "actual": 0.9965870307167235,
+          "reported": 0.9431171786120591,
+          "delta": 0.05346985210466437
+        },
+        "f1": {
+          "actual": 0.996587189768337,
+          "reported": 0.9431058402154749,
+          "delta": 0.0534813495528621
+        },
+        "macro_f1": {
+          "actual": 0.99658639451027,
+          "reported": 0.9431135709404187,
+          "delta": 0.05347282356985128
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 0,
+          "prediction_label": "AI",
+          "probabilities": {
+            "0": 0.6449405885963173,
+            "1": 0.35505941140368275
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "traditional_ml",
+      "model": "LogisticRegression_TFIDF",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\traditional_ml\\LogisticRegression_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9431171786120591,
+        "precision": 0.9472822918683433,
+        "recall": 0.9431171786120591,
+        "f1": 0.9430336132322569,
+        "macro_f1": 0.9430634580107577,
+        "confusion_matrix": [
+          [
+            401,
+            46
+          ],
+          [
+            4,
+            428
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9431171786120591,
+          "reported": 0.9226393629124005,
+          "delta": 0.020477815699658675
+        },
+        "precision": {
+          "actual": 0.9472822918683433,
+          "reported": 0.9287748764900722,
+          "delta": 0.018507415378271164
+        },
+        "recall": {
+          "actual": 0.9431171786120591,
+          "reported": 0.9226393629124005,
+          "delta": 0.020477815699658675
+        },
+        "f1": {
+          "actual": 0.9430336132322569,
+          "reported": 0.9224463805848214,
+          "delta": 0.02058723264743545
+        },
+        "macro_f1": {
+          "actual": 0.9430634580107577,
+          "reported": 0.9225020485639308,
+          "delta": 0.02056140944682694
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 0,
+          "prediction_label": "AI",
+          "probabilities": {
+            "0": 0.6692587323183357,
+            "1": 0.3307412676816643
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "traditional_ml",
+      "model": "RandomForest_TFIDF",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\traditional_ml\\RandomForest_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "macro_f1": 1.0,
+        "confusion_matrix": [
+          [
+            447,
+            0
+          ],
+          [
+            0,
+            432
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 1.0,
+          "reported": 0.9044368600682594,
+          "delta": 0.09556313993174059
+        },
+        "precision": {
+          "actual": 1.0,
+          "reported": 0.9133985993401726,
+          "delta": 0.08660140065982735
+        },
+        "recall": {
+          "actual": 1.0,
+          "reported": 0.9044368600682594,
+          "delta": 0.09556313993174059
+        },
+        "f1": {
+          "actual": 1.0,
+          "reported": 0.9040477787340961,
+          "delta": 0.09595222126590386
+        },
+        "macro_f1": {
+          "actual": 1.0,
+          "reported": 0.9041389696717905,
+          "delta": 0.09586103032820947
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 1,
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "0": 0.275,
+            "1": 0.725
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "traditional_ml",
+      "model": "XGBoost_TFIDF",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\traditional_ml\\XGBoost_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9135381114903299,
+        "precision": 0.9215612887932991,
+        "recall": 0.9135381114903299,
+        "f1": 0.9132351757882732,
+        "macro_f1": 0.9133109097137875,
+        "confusion_matrix": [
+          [
+            379,
+            68
+          ],
+          [
+            8,
+            424
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9135381114903299,
+          "reported": 0.8976109215017065,
+          "delta": 0.015927189988623414
+        },
+        "precision": {
+          "actual": 0.9215612887932991,
+          "reported": 0.9053706030353421,
+          "delta": 0.016190685757957013
+        },
+        "recall": {
+          "actual": 0.9135381114903299,
+          "reported": 0.8976109215017065,
+          "delta": 0.015927189988623414
+        },
+        "f1": {
+          "actual": 0.9132351757882732,
+          "reported": 0.8972521818545341,
+          "delta": 0.01598299393373903
+        },
+        "macro_f1": {
+          "actual": 0.9133109097137875,
+          "reported": 0.8973418667663272,
+          "delta": 0.015969042947460266
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 1,
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "0": 0.31884682178497314,
+            "1": 0.6811531782150269
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "deep_learning",
+      "model": "BiLSTM_Keras",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\BiLSTM_Keras.keras",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "training_log_exists": true,
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.906712172923777,
+        "precision": 0.9113699179871021,
+        "recall": 0.906712172923777,
+        "f1": 0.9065397848336221,
+        "macro_f1": 0.9065959983412814,
+        "confusion_matrix": [
+          [
+            383,
+            64
+          ],
+          [
+            18,
+            414
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.906712172923777,
+          "reported": 0.906712172923777,
+          "delta": 0.0
+        },
+        "precision": {
+          "actual": 0.9113699179871021,
+          "reported": 0.9113699179871021,
+          "delta": 0.0
+        },
+        "recall": {
+          "actual": 0.906712172923777,
+          "reported": 0.906712172923777,
+          "delta": 0.0
+        },
+        "f1": {
+          "actual": 0.9065397848336221,
+          "reported": 0.9065397848336221,
+          "delta": 0.0
+        },
+        "macro_f1": {
+          "actual": 0.9065959983412814,
+          "reported": 0.9065959983412814,
+          "delta": 0.0
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_label": "AI",
+          "probabilities": {
+            "AI": 0.9294265508651733,
+            "HUMAN": 0.07057351619005203
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "transformers",
+      "model": "MiniTransformer_Keras",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\transformers\\MiniTransformer_Keras.keras",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "training_log_exists": true,
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.926052332195677,
+        "precision": 0.9260808001128115,
+        "recall": 0.926052332195677,
+        "f1": 0.9260557783139673,
+        "macro_f1": 0.9260385477225155,
+        "confusion_matrix": [
+          [
+            413,
+            34
+          ],
+          [
+            31,
+            401
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.926052332195677,
+          "reported": 0.926052332195677,
+          "delta": 0.0
+        },
+        "precision": {
+          "actual": 0.9260808001128115,
+          "reported": 0.9260808001128115,
+          "delta": 0.0
+        },
+        "recall": {
+          "actual": 0.926052332195677,
+          "reported": 0.926052332195677,
+          "delta": 0.0
+        },
+        "f1": {
+          "actual": 0.9260557783139673,
+          "reported": 0.9260557783139673,
+          "delta": 0.0
+        },
+        "macro_f1": {
+          "actual": 0.9260385477225155,
+          "reported": 0.9260385477225155,
+          "delta": 0.0
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_label": "AI",
+          "probabilities": {
+            "AI": 0.9999232292175293,
+            "HUMAN": 7.675433153053746e-05
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "family": "transformers",
+      "model": "XLMRoberta_FineTuned",
+      "artifact": "experiments\\experiment_1_stopwords_included\\models\\transformers\\xlm-roberta-base\\model.safetensors",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "training_log_exists": true,
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.764505119453925,
+        "precision": 0.7651358216233555,
+        "recall": 0.764505119453925,
+        "f1": 0.7641996948649004,
+        "macro_f1": 0.7640164401114856,
+        "confusion_matrix": [
+          [
+            356,
+            91
+          ],
+          [
+            116,
+            316
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.764505119453925,
+          "reported": 0.764505119453925,
+          "delta": 0.0
+        },
+        "precision": {
+          "actual": 0.7651358216233555,
+          "reported": 0.7651358216233555,
+          "delta": 0.0
+        },
+        "recall": {
+          "actual": 0.764505119453925,
+          "reported": 0.764505119453925,
+          "delta": 0.0
+        },
+        "f1": {
+          "actual": 0.7641996948649004,
+          "reported": 0.7641996948649004,
+          "delta": 0.0
+        },
+        "macro_f1": {
+          "actual": 0.7640164401114856,
+          "reported": 0.7640164401114856,
+          "delta": 0.0
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_label": "AI",
+          "probabilities": {
+            "AI": 0.8007458448410034,
+            "HUMAN": 0.19925418496131897
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "traditional_ml",
+      "model": "LinearSVC_TFIDF",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\traditional_ml\\LinearSVC_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9954493742889647,
+        "precision": 0.995491123148699,
+        "recall": 0.9954493742889647,
+        "f1": 0.9954496334764698,
+        "macro_f1": 0.9954486615233262,
+        "confusion_matrix": [
+          [
+            443,
+            4
+          ],
+          [
+            0,
+            432
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9954493742889647,
+          "reported": 0.9328782707622298,
+          "delta": 0.0625711035267349
+        },
+        "precision": {
+          "actual": 0.995491123148699,
+          "reported": 0.9343463981718686,
+          "delta": 0.061144724976830434
+        },
+        "recall": {
+          "actual": 0.9954493742889647,
+          "reported": 0.9328782707622298,
+          "delta": 0.0625711035267349
+        },
+        "f1": {
+          "actual": 0.9954496334764698,
+          "reported": 0.9328565496725926,
+          "delta": 0.06259308380387718
+        },
+        "macro_f1": {
+          "actual": 0.9954486615233262,
+          "reported": 0.9328695823263748,
+          "delta": 0.06257907919695138
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 0,
+          "prediction_label": "AI",
+          "probabilities": {
+            "0": 0.5696092022127591,
+            "1": 0.4303907977872409
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "traditional_ml",
+      "model": "LogisticRegression_TFIDF",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\traditional_ml\\LogisticRegression_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9385665529010239,
+        "precision": 0.9426973177869622,
+        "recall": 0.9385665529010239,
+        "f1": 0.9384763022908373,
+        "macro_f1": 0.9385085346516183,
+        "confusion_matrix": [
+          [
+            399,
+            48
+          ],
+          [
+            6,
+            426
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9385665529010239,
+          "reported": 0.9215017064846417,
+          "delta": 0.017064846416382173
+        },
+        "precision": {
+          "actual": 0.9426973177869622,
+          "reported": 0.9278610207616197,
+          "delta": 0.014836297025342504
+        },
+        "recall": {
+          "actual": 0.9385665529010239,
+          "reported": 0.9215017064846417,
+          "delta": 0.017064846416382173
+        },
+        "f1": {
+          "actual": 0.9384763022908373,
+          "reported": 0.9212967062536501,
+          "delta": 0.017179596037187217
+        },
+        "macro_f1": {
+          "actual": 0.9385085346516183,
+          "reported": 0.9213547251869496,
+          "delta": 0.017153809464668712
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 1,
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "0": 0.4643942206046222,
+            "1": 0.5356057793953778
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "traditional_ml",
+      "model": "RandomForest_TFIDF",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\traditional_ml\\RandomForest_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "macro_f1": 1.0,
+        "confusion_matrix": [
+          [
+            447,
+            0
+          ],
+          [
+            0,
+            432
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 1.0,
+          "reported": 0.9010238907849829,
+          "delta": 0.0989761092150171
+        },
+        "precision": {
+          "actual": 1.0,
+          "reported": 0.9096435774123487,
+          "delta": 0.09035642258765131
+        },
+        "recall": {
+          "actual": 1.0,
+          "reported": 0.9010238907849829,
+          "delta": 0.0989761092150171
+        },
+        "f1": {
+          "actual": 1.0,
+          "reported": 0.9006353546582407,
+          "delta": 0.09936464534175926
+        },
+        "macro_f1": {
+          "actual": 1.0,
+          "reported": 0.900727863259846,
+          "delta": 0.099272136740154
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 1,
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "0": 0.19166666666666668,
+            "1": 0.8083333333333333
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "traditional_ml",
+      "model": "XGBoost_TFIDF",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\traditional_ml\\XGBoost_TFIDF.joblib",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "notes": [
+        "Saved traditional models were refit on train+val+test after evaluation, so fresh test metrics are leakage-affected."
+      ],
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9078498293515358,
+        "precision": 0.9183550662367772,
+        "recall": 0.9078498293515358,
+        "f1": 0.9074037589551786,
+        "macro_f1": 0.9075007307804736,
+        "confusion_matrix": [
+          [
+            372,
+            75
+          ],
+          [
+            6,
+            426
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9078498293515358,
+          "reported": 0.9021615472127418,
+          "delta": 0.005688282138794021
+        },
+        "precision": {
+          "actual": 0.9183550662367772,
+          "reported": 0.9116496082958584,
+          "delta": 0.006705457940918813
+        },
+        "recall": {
+          "actual": 0.9078498293515358,
+          "reported": 0.9021615472127418,
+          "delta": 0.005688282138794021
+        },
+        "f1": {
+          "actual": 0.9074037589551786,
+          "reported": 0.9017338756215492,
+          "delta": 0.005669883333629389
+        },
+        "macro_f1": {
+          "actual": 0.9075007307804736,
+          "reported": 0.9018310737104566,
+          "delta": 0.005669657070016987
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_raw": 1,
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "0": 0.2653891444206238,
+            "1": 0.7346108555793762
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "deep_learning",
+      "model": "BiLSTM_Keras",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\BiLSTM_Keras.keras",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "training_log_exists": true,
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.9124004550625711,
+        "precision": 0.9177409116352981,
+        "recall": 0.9124004550625711,
+        "f1": 0.9122112863271248,
+        "macro_f1": 0.91226919512369,
+        "confusion_matrix": [
+          [
+            384,
+            63
+          ],
+          [
+            14,
+            418
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.9124004550625711,
+          "reported": 0.9124004550625711,
+          "delta": 0.0
+        },
+        "precision": {
+          "actual": 0.9177409116352981,
+          "reported": 0.9177409116352981,
+          "delta": 0.0
+        },
+        "recall": {
+          "actual": 0.9124004550625711,
+          "reported": 0.9124004550625711,
+          "delta": 0.0
+        },
+        "f1": {
+          "actual": 0.9122112863271248,
+          "reported": 0.9122112863271248,
+          "delta": 0.0
+        },
+        "macro_f1": {
+          "actual": 0.91226919512369,
+          "reported": 0.91226919512369,
+          "delta": 0.0
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "AI": 0.17979785799980164,
+            "HUMAN": 0.820202112197876
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "transformers",
+      "model": "MiniTransformer_Keras",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\MiniTransformer_Keras.keras",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "training_log_exists": true,
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.8862343572241184,
+        "precision": 0.905883018511005,
+        "recall": 0.8862343572241184,
+        "f1": 0.8850795931809045,
+        "macro_f1": 0.8852600250626567,
+        "confusion_matrix": [
+          [
+            349,
+            98
+          ],
+          [
+            2,
+            430
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.8862343572241184,
+          "reported": 0.8862343572241184,
+          "delta": 0.0
+        },
+        "precision": {
+          "actual": 0.905883018511005,
+          "reported": 0.905883018511005,
+          "delta": 0.0
+        },
+        "recall": {
+          "actual": 0.8862343572241184,
+          "reported": 0.8862343572241184,
+          "delta": 0.0
+        },
+        "f1": {
+          "actual": 0.8850795931809045,
+          "reported": 0.8850795931809045,
+          "delta": 0.0
+        },
+        "macro_f1": {
+          "actual": 0.8852600250626567,
+          "reported": 0.8852600250626567,
+          "delta": 0.0
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_label": "AI",
+          "probabilities": {
+            "AI": 0.503320574760437,
+            "HUMAN": 0.496679425239563
+          }
+        }
+      ]
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "transformers",
+      "model": "XLMRoberta_FineTuned",
+      "artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\xlm-roberta-base\\model.safetensors",
+      "artifact_exists": true,
+      "loaded": true,
+      "inference_ok": true,
+      "training_log_exists": true,
+      "fresh_saved_artifact_metrics_on_test_split": {
+        "accuracy": 0.7417519908987485,
+        "precision": 0.7689802518349136,
+        "recall": 0.7417519908987485,
+        "f1": 0.7360557621286833,
+        "macro_f1": 0.7366794368115372,
+        "confusion_matrix": [
+          [
+            265,
+            182
+          ],
+          [
+            45,
+            387
+          ]
+        ]
+      },
+      "comparison_to_reported": {
+        "accuracy": {
+          "actual": 0.7417519908987485,
+          "reported": 0.7417519908987485,
+          "delta": 0.0
+        },
+        "precision": {
+          "actual": 0.7689802518349136,
+          "reported": 0.7689802518349136,
+          "delta": 0.0
+        },
+        "recall": {
+          "actual": 0.7417519908987485,
+          "reported": 0.7417519908987485,
+          "delta": 0.0
+        },
+        "f1": {
+          "actual": 0.7360557621286833,
+          "reported": 0.7360557621286833,
+          "delta": 0.0
+        },
+        "macro_f1": {
+          "actual": 0.7366794368115372,
+          "reported": 0.7366794368115372,
+          "delta": 0.0
+        }
+      },
+      "sample_predictions": [
+        {
+          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
+          "prediction_label": "HUMAN",
+          "probabilities": {
+            "AI": 0.31303974986076355,
+            "HUMAN": 0.6869602203369141
+          }
+        }
+      ]
+    }
+  ],
+  "missing_expected_models": [
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "Naive Bayes",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\traditional_ml\\NaiveBayes_TFIDF.joblib",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "LSTM",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\LSTM_Keras.keras",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "CNN",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\CNN_Keras.keras",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "GRU",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\GRU_Keras.keras",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "BERT",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\transformers\\bert-base-multilingual-cased\\model.safetensors",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "RoBERTa",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\transformers\\roberta-base\\model.safetensors",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_1_stopwords_included",
+      "model": "DistilBERT",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_1_stopwords_included\\models\\transformers\\distilbert-base-multilingual-cased\\model.safetensors",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "Naive Bayes",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\traditional_ml\\NaiveBayes_TFIDF.joblib",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "LSTM",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\LSTM_Keras.keras",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "CNN",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\CNN_Keras.keras",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "GRU",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\GRU_Keras.keras",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "BERT",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\bert-base-multilingual-cased\\model.safetensors",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "RoBERTa",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\roberta-base\\model.safetensors",
+      "artifact_exists": false
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "model": "DistilBERT",
+      "status": "Missing",
+      "expected_artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\distilbert-base-multilingual-cased\\model.safetensors",
+      "artifact_exists": false
+    }
+  ],
+  "log_audit": [
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\BiLSTM_FastText_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\BiLSTM_Keras_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\BiLSTM_Word2Vec_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\transformers\\AfriBERTa_FineTuned\\AfriBERTa_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\transformers\\AfroXLMR_FineTuned\\AfroXLMR_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\transformers\\mBERT_FineTuned\\mBERT_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\transformers\\MiniTransformer_Keras_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\transformers\\SomBERTa_FineTuned\\SomBERTa_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\models\\transformers\\xlm-roberta-base\\xlm_roberta_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\BiLSTM_FastText_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\BiLSTM_Keras_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\BiLSTM_Word2Vec_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\AfriBERTa_FineTuned\\AfriBERTa_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\AfroXLMR_FineTuned\\AfroXLMR_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\mBERT_FineTuned\\mBERT_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\MiniTransformer_Keras_training_log.csv",
+      "exists": true,
+      "rows": 3
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\SomBERTa_FineTuned\\SomBERTa_FineTuned_training_log.csv",
+      "exists": true,
+      "rows": 624
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\xlm-roberta-base\\xlm_roberta_training_log.csv",
+      "exists": true,
+      "rows": 624
+    }
+  ],
+  "report_files": [
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_BiLSTM_Keras.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_LinearSVC_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_LogisticRegression_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_MiniTransformer_Keras.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_RandomForest_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_XGBoost_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_1_stopwords_included\\evaluation\\reports\\classification_report_XLMRoberta_FineTuned.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_BiLSTM_Keras.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_LinearSVC_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_LogisticRegression_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_MiniTransformer_Keras.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_RandomForest_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_XGBoost_TFIDF.csv",
+      "exists": true
+    },
+    {
+      "file": "experiments\\experiment_2_stopwords_removed\\evaluation\\reports\\classification_report_XLMRoberta_FineTuned.csv",
+      "exists": true
+    }
+  ]
+}

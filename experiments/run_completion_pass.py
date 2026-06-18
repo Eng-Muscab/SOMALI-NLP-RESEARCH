@@ -44,7 +44,7 @@ from experiments.run_full_12_steps import (
 
 TRANSFORMER_SPECS: list[tuple[str, str]] = [
     ("bert-base-multilingual-cased", "mBERT_FineTuned"),
-    ("shuakshay/SomBERTa", "SomBERTa_FineTuned"),
+    ("shuabdaud/SomBERTa", "SomBERTa_FineTuned"),
     ("Davlan/afro-xlmr-base", "AfroXLMR_FineTuned"),
     ("castorini/afriberta_base", "AfriBERTa_FineTuned"),
 ]
@@ -82,6 +82,42 @@ def build_embedding_matrix(
     return matrix, hits
 
 
+def build_multilingual_embedding_matrix(
+    tokenizer_meta: dict,
+    seed: int,
+    model_id: str = "bert-base-multilingual-cased",
+    embedding_dim: int = 100,
+) -> tuple[np.ndarray, int]:
+    """Create Keras word-level embeddings from a frozen multilingual HF embedding table."""
+    from transformers import AutoModel, AutoTokenizer
+
+    rng = np.random.default_rng(seed)
+    tokenizer = tokenizer_meta["tokenizer"]
+    word_index = tokenizer.word_index
+    max_tokens = int(tokenizer_meta["max_tokens"])
+    matrix = rng.uniform(-0.05, 0.05, (max_tokens, embedding_dim)).astype(np.float32)
+    matrix[0] = 0.0
+
+    hf_tokenizer = AutoTokenizer.from_pretrained(model_id)
+    hf_model = AutoModel.from_pretrained(model_id)
+    hf_model.eval()
+    source_embeddings = hf_model.get_input_embeddings().weight.detach().cpu().numpy()
+    source_dim = source_embeddings.shape[1]
+    projection = rng.normal(0.0, 1.0 / np.sqrt(source_dim), (source_dim, embedding_dim)).astype(np.float32)
+
+    hits = 0
+    for word, index in word_index.items():
+        if index >= max_tokens:
+            continue
+        pieces = hf_tokenizer(word, add_special_tokens=False)["input_ids"]
+        if not pieces:
+            continue
+        vector = source_embeddings[pieces].mean(axis=0).astype(np.float32) @ projection
+        matrix[index] = vector
+        hits += 1
+    return matrix, hits
+
+
 def train_bilstm_with_embeddings(
     exp_dir: Path,
     label_names: list[str],
@@ -110,7 +146,8 @@ def train_bilstm_with_embeddings(
             epochs=5,
         )
         joblib.dump(embedding_model, data_dir / "word2vec.model")
-    else:
+        embedding_matrix, vocab_hits = build_embedding_matrix(tok_meta, embedding_model, embedding_dim)
+    elif embedding_type == "fasttext":
         embedding_model = FastText(
             sentences=sentences,
             vector_size=embedding_dim,
@@ -121,8 +158,12 @@ def train_bilstm_with_embeddings(
             epochs=5,
         )
         joblib.dump(embedding_model, data_dir / "fasttext.model")
+        embedding_matrix, vocab_hits = build_embedding_matrix(tok_meta, embedding_model, embedding_dim)
+    elif embedding_type == "multilingual":
+        embedding_matrix, vocab_hits = build_multilingual_embedding_matrix(tok_meta, seed, embedding_dim=embedding_dim)
+    else:
+        raise ValueError(f"Unsupported embedding_type: {embedding_type}")
 
-    embedding_matrix, vocab_hits = build_embedding_matrix(tok_meta, embedding_model, embedding_dim)
     joblib.dump(
         {"embedding_type": embedding_type, "vocab_hits": vocab_hits, "embedding_dim": embedding_dim},
         data_dir / f"{model_name.lower()}_embedding_meta.joblib",
@@ -302,6 +343,15 @@ def model_report_exists(exp_dir: Path, model_name: str) -> bool:
     return (exp_dir / "evaluation" / "reports" / f"classification_report_{model_name}.csv").exists()
 
 
+def keras_artifact_exists(exp_dir: Path, model_name: str) -> bool:
+    return (exp_dir / "models" / "deep_learning" / f"{model_name}.keras").exists()
+
+
+def hf_artifact_exists(exp_dir: Path, model_name: str) -> bool:
+    model_dir = exp_dir / "models" / "transformers" / model_name
+    return (model_dir / "model.safetensors").exists() or (model_dir / "pytorch_model.bin").exists()
+
+
 def infer_model_family(model_name: str) -> str:
     if model_name.endswith("_TFIDF"):
         return "traditional_ml"
@@ -403,20 +453,33 @@ def main() -> int:
             )
 
         if not args.skip_embeddings:
-            if model_report_exists(exp_dir, "BiLSTM_Word2Vec"):
+            if model_report_exists(exp_dir, "BiLSTM_Word2Vec") and keras_artifact_exists(exp_dir, "BiLSTM_Word2Vec"):
                 print(f"== {name}: BiLSTM + Word2Vec already complete, skipping ==")
             else:
                 print(f"== {name}: BiLSTM + Word2Vec ==")
                 new_rows.append(train_bilstm_with_embeddings(exp_dir, label_names, seed, "word2vec", "BiLSTM_Word2Vec"))
-            if model_report_exists(exp_dir, "BiLSTM_FastText"):
+            if model_report_exists(exp_dir, "BiLSTM_FastText") and keras_artifact_exists(exp_dir, "BiLSTM_FastText"):
                 print(f"== {name}: BiLSTM + FastText already complete, skipping ==")
             else:
                 print(f"== {name}: BiLSTM + FastText ==")
                 new_rows.append(train_bilstm_with_embeddings(exp_dir, label_names, seed, "fasttext", "BiLSTM_FastText"))
+            if model_report_exists(exp_dir, "BiLSTM_MultilingualEmbeddings") and keras_artifact_exists(exp_dir, "BiLSTM_MultilingualEmbeddings"):
+                print(f"== {name}: BiLSTM + Multilingual embeddings already complete, skipping ==")
+            else:
+                print(f"== {name}: BiLSTM + Multilingual embeddings ==")
+                new_rows.append(
+                    train_bilstm_with_embeddings(
+                        exp_dir,
+                        label_names,
+                        seed,
+                        "multilingual",
+                        "BiLSTM_MultilingualEmbeddings",
+                    )
+                )
 
         if not args.skip_transformers:
             for model_id, model_name in TRANSFORMER_SPECS:
-                if model_report_exists(exp_dir, model_name):
+                if model_report_exists(exp_dir, model_name) and hf_artifact_exists(exp_dir, model_name):
                     print(f"== {name}: {model_name} already complete, skipping ==")
                     continue
                 print(f"== {name}: fine-tuning {model_name} ==")

@@ -8,7 +8,13 @@ paths:
   experiment_1_dir: experiments/experiment_1_stopwords_included
   experiment_2_dir: experiments/experiment_2_stopwords_removed
   data_processed_dir: experiments\experiment_2_stopwords_removed\data
+  data_annotations_dir: data/annotations
   eda_figures_dir: experiments\experiment_2_stopwords_removed\eda\figures
+  traditional_ml_results_dir: models/traditional_ml/results
+  deep_learning_logs_dir: models/deep_learning/training_logs
+  deep_learning_checkpoints_dir: models/deep_learning/checkpoints
+  transformer_logs_dir: models/transformers/training_logs
+  transformer_checkpoints_dir: models/transformers/checkpoints
   traditional_ml_models_dir: experiments\experiment_2_stopwords_removed\models\traditional_ml
   evaluation_reports_dir: experiments\experiment_2_stopwords_removed\evaluation\reports
   evaluation_figures_dir: experiments\experiment_2_stopwords_removed\evaluation\figures
@@ -41,3 +47,42 @@ traditional_ml:
   optional_models:
   - RandomForest_TFIDF
   - XGBoost_TFIDF
+tokenization:
+  model_name: xlm-roberta-base
+  max_length: 256
+  truncation: true
+  padding: max_length
+deep_learning:
+  max_tokens: 30000
+  embedding_dim: 200
+  lstm_units_1: 128
+  lstm_units_2: 64
+  dropout_1: 0.5
+  dropout_2: 0.3
+  dense_units: 64
+  batch_size: 64
+  epochs: 8
+  patience: 2
+  learning_rate: 0.001
+  trainable_embeddings: false
+transformers:
+  models:
+    mbert: bert-base-multilingual-cased
+    xlmr: xlm-roberta-base
+    somberta: shuabdaud/SomBERTa
+    afroxlmr: Davlan/afro-xlmr-base
+    afriberta: castorini/afriberta_base
+  num_labels: 2
+  batch_size: 8
+  eval_batch_size: 16
+  learning_rate: 2.0e-05
+  weight_decay: 0.01
+  epochs: 3
+  warmup_ratio: 0.1
+  gradient_accumulation_steps: 1
+  early_stopping_patience: 2
+  save_total_limit: 2
+  logging_steps: 25
+  metric_for_best_model: f1
+  greater_is_better: true
+  fp16: false

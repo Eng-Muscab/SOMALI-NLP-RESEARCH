@@ -13,12 +13,12 @@
     "f1": 0.9328565496725926,
     "macro_f1": 0.9328695823263748
   },
-  "model_count": 13,
+  "model_count": 14,
   "models": [
     "LinearSVC_TFIDF",
     "LogisticRegression_TFIDF",
-    "XGBoost_TFIDF",
     "BiLSTM_Keras",
+    "XGBoost_TFIDF",
     "RandomForest_TFIDF",
     "BiLSTM_Word2Vec",
     "MiniTransformer_Keras",
@@ -27,6 +27,7 @@
     "SomBERTa_FineTuned",
     "AfroXLMR_FineTuned",
     "XLMRoberta_FineTuned",
+    "BiLSTM_MultilingualEmbeddings",
     "mBERT_FineTuned"
   ]
 }

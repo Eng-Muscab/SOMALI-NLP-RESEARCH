@@ -5,6 +5,8 @@ from ..controllers import (
     experiments_controller,
     health_controller,
     predict_controller,
+    models_controller,
+    metrics_controller,
 )
 
 router = APIRouter()
@@ -13,3 +15,5 @@ router.include_router(auth_controller.router)
 router.include_router(predict_controller.router)
 router.include_router(dataset_controller.router)
 router.include_router(experiments_controller.router)
+router.include_router(models_controller.router)
+router.include_router(metrics_controller.router)

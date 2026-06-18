@@ -10,27 +10,17 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('theme') as Theme | null
-      if (stored) return stored
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    }
-    return 'light'
-  })
+  const [theme] = useState<Theme>('light')
 
   useEffect(() => {
-    localStorage.setItem('theme', theme)
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-  }, [theme])
+    if (typeof window === 'undefined') return
+
+    localStorage.setItem('theme', 'light')
+    document.documentElement.classList.remove('dark')
+  }, [])
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+    // Theme switching is disabled. Dark mode remains inactive in the UI.
   }
 
   return (

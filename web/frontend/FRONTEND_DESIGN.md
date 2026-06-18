@@ -189,7 +189,7 @@ npm run preview
 
 ### API Integration
 
-- Backend API calls to `http://localhost:8000`
+- Backend API calls to `/api`, proxied by Vite to `http://localhost:8001`
 - Axios instance with proper error handling
 - Async data loading with loading states
 
@@ -242,7 +242,7 @@ UI Re-render
 
 ## 🔗 Backend Integration
 
-All API calls point to `http://localhost:8000/api/`
+All API calls point to `/api/` in development and are proxied to `http://localhost:8001/api/`
 
 ### Endpoints Used
 

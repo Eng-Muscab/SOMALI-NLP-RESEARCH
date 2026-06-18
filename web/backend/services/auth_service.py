@@ -14,6 +14,30 @@ async def ensure_user_indexes() -> None:
     await db.users.create_index("email", unique=True)
 
 
+async def ensure_demo_user() -> None:
+    db = get_database()
+    await ensure_user_indexes()
+
+    demo_email = "demo@somalinlp.io"
+    demo_password = "Demo12345!"
+
+    existing = await db.users.find_one({"email": demo_email})
+    if existing:
+        return
+
+    try:
+        await db.users.insert_one(
+            {
+                "email": demo_email,
+                "password": hash_password(demo_password),
+                "created_at": datetime.utcnow(),
+                "is_active": True,
+            }
+        )
+    except DuplicateKeyError:
+        return
+
+
 def serialize_user(user: dict | None) -> dict | None:
     if not user:
         return None

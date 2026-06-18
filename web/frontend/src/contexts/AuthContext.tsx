@@ -1,24 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login as loginRequest, register as registerRequest } from '@services/authService'
-import { getToken, parseJwt, removeToken, setToken } from '@utils/token'
-import type { AuthContextValue, LoginCredentials, RegisterPayload, User } from '@types/auth'
+import { getCurrentUser, login as loginRequest, register as registerRequest } from '@services/authService'
+import { getToken, removeToken, setToken } from '@utils/token'
+import type { AuthContextValue, LoginCredentials, RegisterPayload, User } from '@/types/auth'
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
-
-const buildUserFromToken = (token: string): User | null => {
-  const payload = parseJwt(token)
-
-  if (!payload) {
-    return null
-  }
-
-  return {
-    id: payload.sub ?? payload.user?.id,
-    email: payload.email ?? payload.user?.email,
-    name: payload.name ?? payload.user?.name,
-  }
-}
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate()
@@ -27,17 +13,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const token = getToken()
+    let isMounted = true
 
-    if (token) {
-      const currentUser = buildUserFromToken(token)
-      if (currentUser) {
-        setUser(currentUser)
-        setIsAuthenticated(true)
+    const restoreSession = async () => {
+      const token = getToken()
+
+      if (!token) {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+        return
+      }
+
+      try {
+        const response = await getCurrentUser()
+        if (isMounted) {
+          setUser(response.data)
+          setIsAuthenticated(true)
+        }
+      } catch {
+        removeToken()
+        if (isMounted) {
+          setUser(null)
+          setIsAuthenticated(false)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
-    setIsLoading(false)
+    restoreSession()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const login = async (credentials: LoginCredentials) => {
@@ -49,8 +60,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     setToken(token)
-    const currentUser = buildUserFromToken(token)
-    setUser(currentUser)
+    const currentUser = await getCurrentUser()
+    setUser(currentUser.data)
     setIsAuthenticated(true)
   }
 

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pymongo.errors import PyMongoError
 
 from ..schemas.user import Token, UserCreate, UserLogin, UserOut
 from ..services.auth_service import authenticate_user, register_user
@@ -9,7 +10,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
-    created_user = await register_user(user.email, user.password)
+    try:
+        created_user = await register_user(user.email, user.password)
+    except (RuntimeError, PyMongoError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is unavailable. Please start MongoDB and try again.",
+        ) from exc
     if not created_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -20,7 +27,13 @@ async def register(user: UserCreate):
 
 @router.post("/login", response_model=Token)
 async def login(user: UserLogin):
-    token = await authenticate_user(user.email, user.password)
+    try:
+        token = await authenticate_user(user.email, user.password)
+    except (RuntimeError, PyMongoError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is unavailable. Please start MongoDB and try again.",
+        ) from exc
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

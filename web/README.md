@@ -1,56 +1,51 @@
 # Somali-NLP-RESEARCH Web Interface
 
-This folder contains a FastAPI backend and a React + Vite frontend that provide a web interface for the existing Somali-NLP-RESEARCH models.
+This folder contains a FastAPI backend and a React + Vite frontend for the Somali-NLP-RESEARCH models.
 
-Overview
+## Overview
 
-- Backend: `web/backend` (FastAPI) — exposes authentication, predict, datasets, and experiments endpoints
-- Frontend: `web/frontend` (React + TypeScript + Vite) — minimal admin dashboard and prediction UI
+- Backend: `web/backend` (FastAPI) exposes authentication, prediction, datasets, experiments, metrics, and model endpoints.
+- Frontend: `web/frontend` (React + TypeScript + Vite) provides the dashboard and prediction UI.
 
-Important
-
-- Do NOT modify repository root files. All new code lives inside `web/`.
-- This project does not use Docker.
-
-Quick start (backend)
-
-Important note: Use Python 3.11 (or 3.10) for the backend virtual environment. Python 3.13 may require building Rust-based wheels (pydantic-core) and can fail during pip install.
-
-1. Create a Python 3.11 virtualenv and activate it.
-2. Install backend requirements:
+## One-command local start
 
 ```powershell
-cd web/backend
-# create venv (example using py launcher)
+cd web
+.\run_all.ps1
+```
+
+This starts:
+
+- Backend docs: `http://127.0.0.1:8001/docs`
+- Frontend UI: `http://localhost:5173`
+
+## Backend
+
+Use Python 3.11 or 3.10 for the backend virtual environment.
+
+```powershell
+cd web\backend
 py -3.11 -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+
+cd ..
+.\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
-3. Set environment variables (example):
+## Frontend
 
-```bash
-export MONGODB_URI="mongodb://localhost:27017"
-export MONGO_DB_NAME="somali_nlp"
-export SECRET_KEY="change-me"
-```
-
-4. Run the API:
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Quick start (frontend)
-
-```bash
-cd web/frontend
+```powershell
+cd web\frontend
 npm install
-npm run dev
+npm.cmd run dev
 ```
 
-Notes
+The frontend calls `/api/*` and Vite proxies those requests to `http://localhost:8001`. For a custom API URL, set `VITE_API_BASE_URL` before starting the frontend.
 
-- The backend loads trained model artifacts found in the repository `models/` directory for inference only.
-- Use the API endpoints described in the project README.
+## Database
+
+MongoDB is used for users, auth, dataset metadata, and prediction history. Prediction still works when MongoDB is offline, but history will not be saved. Start MongoDB locally at `mongodb://localhost:27017` for the full app.
+
+By default the API loads the fast, reliable `.joblib` scikit-learn models. Set `LOAD_DEEP_MODELS=true` in `web/backend/.env` if you also want to load Keras or transformer artifacts during startup.

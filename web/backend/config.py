@@ -14,7 +14,14 @@ class Settings(BaseModel):
     app_name: str = Field(default="Somali NLP Research API")
     environment: str = Field(default="development")
     api_prefix: str = Field(default="/api")
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+        ]
+    )
     mongodb_uri: str = Field(default="mongodb://localhost:27017")
     mongo_db_name: str = Field(default="somali_nlp")
     mongodb_timeout_ms: int = Field(default=3000)
@@ -23,7 +30,9 @@ class Settings(BaseModel):
     access_token_expire_minutes: int = Field(default=60)
     models_dir: Path = Field(default=REPO_ROOT / "models")
     experiments_dir: Path = Field(default=REPO_ROOT / "experiments")
+    METRICS_DIR: Path = Field(default=REPO_ROOT / "metrics")
     uploads_dir: Path = Field(default=BACKEND_DIR / "uploads")
+    load_deep_models: bool = Field(default=False)
 
 
 def _csv_env(name: str, default: list[str]) -> list[str]:
@@ -45,7 +54,15 @@ def get_settings() -> Settings:
         app_name=os.getenv("APP_NAME", Settings.model_fields["app_name"].default),
         environment=os.getenv("ENVIRONMENT", Settings.model_fields["environment"].default),
         api_prefix=os.getenv("API_PREFIX", Settings.model_fields["api_prefix"].default),
-        cors_origins=_csv_env("CORS_ORIGINS", ["http://localhost:5173"]),
+        cors_origins=_csv_env(
+            "CORS_ORIGINS",
+            [
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:5174",
+                "http://127.0.0.1:5174",
+            ],
+        ),
         mongodb_uri=os.getenv("MONGODB_URI", Settings.model_fields["mongodb_uri"].default),
         mongo_db_name=os.getenv("MONGO_DB_NAME", Settings.model_fields["mongo_db_name"].default),
         mongodb_timeout_ms=int(
@@ -65,6 +82,8 @@ def get_settings() -> Settings:
         models_dir=_path_env("MODELS_DIR", REPO_ROOT / "models"),
         experiments_dir=_path_env("EXPERIMENTS_DIR", REPO_ROOT / "experiments"),
         uploads_dir=_path_env("UPLOADS_DIR", BACKEND_DIR / "uploads"),
+        load_deep_models=os.getenv("LOAD_DEEP_MODELS", "false").strip().lower()
+        in {"1", "true", "yes", "on"},
     )
 
 
@@ -79,3 +98,4 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 MODELS_DIR = settings.models_dir
 EXPERIMENTS_DIR = settings.experiments_dir
 UPLOADS_DIR = settings.uploads_dir
+LOAD_DEEP_MODELS = settings.load_deep_models

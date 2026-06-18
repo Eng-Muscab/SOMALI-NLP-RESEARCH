@@ -19,11 +19,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           className={`
-            w-full px-4 py-2 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white
-            border border-neutral-300 dark:border-neutral-600 rounded-lg
-            focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-            transition-all duration-200
-            placeholder-neutral-400 dark:placeholder-neutral-500
+            w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-neutral-900/50 text-neutral-900 dark:text-white
+            border border-neutral-200 dark:border-neutral-800/80 rounded-xl
+            focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10
+            transition-all duration-300
+            placeholder-neutral-450 dark:placeholder-neutral-500
             ${icon ? 'pl-10' : ''}
             ${error ? 'border-red-500 focus:ring-red-500' : ''}
             ${className}

@@ -20,6 +20,8 @@ import {
   previewDataset,
   uploadDataset,
 } from '@services/datasetService'
+import { getApiErrorMessage } from '@services/api'
+import { useToast } from '../contexts/ToastContext'
 import { DatasetMeta, DatasetPreview } from '../types/dataset'
 
 const formatFileSize = (size: number) => {
@@ -48,6 +50,7 @@ const Datasets = () => {
   const [preview, setPreview] = useState<DatasetPreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null)
+  const { showToast } = useToast()
 
   const datasetTypes = useMemo(() => {
     const types = new Set<string>()
@@ -127,7 +130,9 @@ const Datasets = () => {
       const response = await listDatasets()
       setDatasets(response.data)
     } catch (err) {
-      setError('Unable to load datasets. Please try again later.')
+      const message = getApiErrorMessage(err, 'Unable to load datasets. Please try again later.')
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setIsLoading(false)
     }
@@ -147,10 +152,13 @@ const Datasets = () => {
     try {
       await uploadDataset(file, setUploadProgress)
       setSuccess('Dataset uploaded successfully.')
+      showToast('Dataset uploaded successfully.', 'success')
       setFile(null)
       await loadDatasets()
     } catch (err) {
-      setError('Failed to upload dataset. Please check the file and try again.')
+      const message = getApiErrorMessage(err, 'Failed to upload dataset. Please check the file and try again.')
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setIsUploading(false)
     }
@@ -166,7 +174,9 @@ const Datasets = () => {
       const response = await previewDataset(dataset.id)
       setPreview(response.data)
     } catch (err) {
-      setError('Unable to load dataset preview.')
+      const message = getApiErrorMessage(err, 'Unable to load dataset preview.')
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setPreviewLoading(false)
     }
@@ -184,13 +194,16 @@ const Datasets = () => {
     try {
       await deleteDataset(dataset.id)
       setSuccess('Dataset removed successfully.')
+      showToast('Dataset removed successfully.', 'success')
       if (selectedPreviewId === dataset.id) {
         setPreview(null)
         setSelectedPreviewId(null)
       }
       await loadDatasets()
     } catch (err) {
-      setError('Unable to delete dataset. Please try again.')
+      const message = getApiErrorMessage(err, 'Unable to delete dataset. Please try again.')
+      setError(message)
+      showToast(message, 'error')
     }
   }
 

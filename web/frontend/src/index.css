@@ -3,27 +3,16 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
-    @apply bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white transition-colors;
+    @apply min-h-screen bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-50 transition-colors duration-300;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
-  * {
-    @apply transition-colors duration-200;
-  }
-}
-
-@layer components {
-  .btn-base {
-    @apply inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none;
-  }
-
-  .card-base {
-    @apply bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-xs;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .backdrop-blur-glass {
-    @apply backdrop-blur-md bg-white/80 dark:bg-neutral-800/80;
+  #root {
+    @apply min-h-screen;
   }
 }

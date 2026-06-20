@@ -82,7 +82,7 @@ def get_settings() -> Settings:
         models_dir=_path_env("MODELS_DIR", REPO_ROOT / "models"),
         experiments_dir=_path_env("EXPERIMENTS_DIR", REPO_ROOT / "experiments"),
         uploads_dir=_path_env("UPLOADS_DIR", BACKEND_DIR / "uploads"),
-        load_deep_models=os.getenv("LOAD_DEEP_MODELS", "false").strip().lower()
+        load_deep_models=os.getenv("LOAD_DEEP_MODELS", "true").strip().lower()
         in {"1", "true", "yes", "on"},
     )
 

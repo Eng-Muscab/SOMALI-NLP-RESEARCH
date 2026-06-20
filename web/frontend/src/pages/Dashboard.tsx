@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, Brain, Layers, TrendingUp } from 'lucide-react'
-import { Badge } from '../components/ui/Badge'
-import { Card, CardContent, CardHeader } from '../components/ui/Card'
-import { Skeleton } from '../components/ui/Skeleton'
+import { Activity, Brain, Layers, Target, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { DashboardHero } from '../components/dashboard/DashboardHero'
+import { ExperimentOverview } from '../components/dashboard/ExperimentOverview'
+import { ModelLeaderboard } from '../components/dashboard/ModelLeaderboard'
+import { PerformanceCharts } from '../components/dashboard/PerformanceCharts'
+import { PipelineStatus } from '../components/dashboard/PipelineStatus'
+import { StatCard } from '../components/dashboard/StatCard'
 import api, { getApiErrorMessage } from '../services/api'
 import { listExperiments } from '../services/experimentService'
-import { getCategoryGroup } from '../utils/modelGroup'
+import type { Experiment } from '../types/experiment'
 
 interface ModelData {
   id: string
@@ -14,19 +19,33 @@ interface ModelData {
   experiment?: string
   experimentName?: string
   accuracy: number
+  precision: number
+  recall: number
   f1: number
   status: string
   path?: string
 }
 
-const formatNumber = (value: number, suffix = '') => {
-  if (!Number.isFinite(value)) return 'N/A'
-  return `${value.toFixed(value >= 10 ? 2 : 3)}${suffix}`
+const CHART_PALETTE = ['#6366f1', '#818cf8', '#14b8a6', '#2dd4bf', '#8b5cf6', '#a78bfa', '#f59e0b', '#10b981']
+
+const shortModelName = (name: string) =>
+  name.replace(/_TFIDF$/i, '').replace(/_/g, ' ').slice(0, 18)
+
+const dedupeModels = (models: ModelData[]) => {
+  const map = new Map<string, ModelData>()
+  models.forEach((model) => {
+    const key = model.name.toLowerCase()
+    const existing = map.get(key)
+    if (!existing || model.accuracy > existing.accuracy) {
+      map.set(key, model)
+    }
+  })
+  return Array.from(map.values())
 }
 
 const Dashboard = () => {
   const [models, setModels] = useState<ModelData[]>([])
-  const [experimentCount, setExperimentCount] = useState(0)
+  const [experiments, setExperiments] = useState<Experiment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,190 +53,170 @@ const Dashboard = () => {
     const fetchDashboard = async () => {
       setLoading(true)
       setError(null)
-
       try {
         const [modelsResult, experimentsResult] = await Promise.allSettled([
           api.get<ModelData[]>('/models'),
           listExperiments(),
         ])
-
-        if (modelsResult.status === 'rejected') {
-          throw modelsResult.reason
-        }
-
+        if (modelsResult.status === 'rejected') throw modelsResult.reason
         setModels(Array.isArray(modelsResult.value.data) ? modelsResult.value.data : [])
-        setExperimentCount(experimentsResult.status === 'fulfilled' ? experimentsResult.value.data.length : 0)
-
-        if (experimentsResult.status === 'rejected') {
-          console.error('Failed to load experiments', experimentsResult.reason)
-        }
-      } catch (error) {
-        setError(getApiErrorMessage(error, 'Unable to load dashboard data from the backend.'))
+        setExperiments(experimentsResult.status === 'fulfilled' ? experimentsResult.value.data : [])
+      } catch (err) {
+        setError(getApiErrorMessage(err, 'Unable to load dashboard data from the backend.'))
       } finally {
         setLoading(false)
       }
     }
-
     fetchDashboard()
   }, [])
 
+  const uniqueModels = useMemo(() => dedupeModels(models), [models])
   const sortedModels = useMemo(
-    () => [...models].sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0)),
-    [models]
+    () => [...uniqueModels].sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0)),
+    [uniqueModels],
   )
 
   const bestModel = sortedModels[0]
-  const averageF1 = models.length
-    ? models.reduce((total, model) => total + Number(model.f1 || 0), 0) / models.length
+  const averageF1 = uniqueModels.length
+    ? uniqueModels.reduce((t, m) => t + Number(m.f1 || 0), 0) / uniqueModels.length
+    : 0
+  const averageAccuracy = uniqueModels.length
+    ? uniqueModels.reduce((t, m) => t + Number(m.accuracy || 0), 0) / uniqueModels.length
     : 0
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white">Dashboard</h1>
-        <p className="mt-2 text-neutral-500 dark:text-neutral-400 font-medium">
-          Quick status overview and available NLP classification models.
-        </p>
-      </div>
+  const chartModels = useMemo(
+    () =>
+      sortedModels.map((model, index) => ({
+        name: model.name,
+        shortName: shortModelName(model.name),
+        accuracy: model.accuracy,
+        f1: model.f1,
+        precision: model.precision ?? 0,
+        recall: model.recall ?? 0,
+        experiment: model.experiment ?? 'unknown',
+        color: CHART_PALETTE[index % CHART_PALETTE.length],
+      })),
+    [sortedModels],
+  )
 
+  const leaderboardModels = useMemo(
+    () =>
+      sortedModels.map((model, index) => ({
+        ...model,
+        rank: index + 1,
+        precision: model.precision ?? 0,
+        recall: model.recall ?? 0,
+      })),
+    [sortedModels],
+  )
+
+  const connected = !error
+
+  return (
+    <div className="space-y-7 pb-6">
+      {/* Hero */}
+      <DashboardHero
+        modelCount={uniqueModels.length}
+        bestAccuracy={bestModel?.accuracy ?? 0}
+        connected={connected}
+      />
+
+      {/* Error banner */}
       {error && (
-        <Card className="border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-          <CardContent className="p-4">{error}</CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400"
+        >
+          <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" />
+          {error}
+        </motion.div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-400 uppercase tracking-wider">Backend Status</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">
-                {error ? 'Check API' : 'Connected'}
-              </p>
-            </div>
-            <div className={`p-3.5 rounded-xl ${error ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-accent-50 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400'}`}>
-              <Activity size={22} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-400 uppercase tracking-wider">Trained Models</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{models.length}</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400">
-              <Layers size={22} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-400 uppercase tracking-wider">Experiments</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{experimentCount}</p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400">
-              <Brain size={22} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-400 uppercase tracking-wider">Top Performance</p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-white">
-                {bestModel ? formatNumber(bestModel.accuracy, '%') : 'N/A'}
-              </p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-accent-50 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400">
-              <TrendingUp size={22} />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stat cards */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Active Experiments"
+          value={loading ? '—' : experiments.length}
+          subtitle="Ablation studies configured"
+          icon={<Activity size={20} className="text-white" />}
+          color="emerald"
+          trend={{ label: connected ? 'API Ready' : 'Offline', positive: connected }}
+          delay={0.05}
+        />
+        <StatCard
+          title="Deployed Models"
+          value={loading ? '—' : uniqueModels.length}
+          subtitle="Active classifiers loaded"
+          icon={<Layers size={20} className="text-white" />}
+          color="primary"
+          delay={0.1}
+        />
+        <StatCard
+          title="Mean F1 Score"
+          value={loading ? '—' : averageF1.toFixed(3)}
+          subtitle={`Across ${uniqueModels.length} classifiers`}
+          icon={<Target size={20} className="text-white" />}
+          color="violet"
+          delay={0.15}
+        />
+        <StatCard
+          title="Peak Accuracy"
+          value={loading ? '—' : bestModel ? `${bestModel.accuracy.toFixed(1)}%` : 'N/A'}
+          subtitle={bestModel ? shortModelName(bestModel.name) : 'No models yet'}
+          icon={<TrendingUp size={20} className="text-white" />}
+          color="amber"
+          trend={bestModel ? { label: `Avg ${averageAccuracy.toFixed(1)}%`, positive: true } : undefined}
+          delay={0.2}
+        />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">Loaded from environment</p>
-                <h2 className="mt-1 text-xl font-bold text-neutral-900 dark:text-white">Model Comparison</h2>
-              </div>
-              <Badge variant="primary">{models.length} models</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3.5">
-                <Skeleton className="h-14 rounded-2xl" />
-                <Skeleton className="h-14 rounded-2xl" />
-                <Skeleton className="h-14 rounded-2xl" />
-              </div>
-            ) : models.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 p-10 text-center text-neutral-500 dark:bg-neutral-900/10">
-                No trained models are available from the backend.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-neutral-150 text-neutral-500 dark:border-neutral-800/80 dark:text-neutral-400 font-semibold">
-                      <th className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider">Model</th>
-                      <th className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider">Category</th>
-                      <th className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider">Type</th>
-                      <th className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider">Accuracy</th>
-                      <th className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider">F1</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/40">
-                    {sortedModels.map((model) => (
-                      <tr key={model.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/10">
-                        <td className="px-4 py-4 font-bold text-neutral-900 dark:text-white">{model.name}</td>
-                        <td className="px-4 py-4">
-                          <Badge variant="neutral">{getCategoryGroup(model.type, model.path)}</Badge>
-                        </td>
-                        <td className="px-4 py-4 text-neutral-500 dark:text-neutral-400 font-medium uppercase text-xs">{model.type}</td>
-                        <td className="px-4 py-4 font-bold text-neutral-900 dark:text-white">{formatNumber(model.accuracy, '%')}</td>
-                        <td className="px-4 py-4 font-bold text-neutral-950 dark:text-neutral-200">{formatNumber(model.f1)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Charts */}
+      {!loading && uniqueModels.length > 0 && (
+        <PerformanceCharts models={chartModels} bestModel={chartModels[0]} />
+      )}
 
-        <Card className="h-fit">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-              <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Summary Insights</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-neutral-100 dark:border-neutral-800/60 bg-neutral-50/50 p-5 dark:bg-neutral-900/30">
-              <p className="text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">Best model</p>
-              <p className="mt-2 font-bold text-neutral-900 dark:text-white text-base truncate" title={bestModel?.name}>{bestModel?.name || 'N/A'}</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-100 dark:border-neutral-800/60 bg-neutral-50/50 p-5 dark:bg-neutral-900/30">
-              <p className="text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">Average F1 Score</p>
-              <p className="mt-2 font-bold text-neutral-900 dark:text-white text-2xl">{models.length ? formatNumber(averageF1) : 'N/A'}</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-100 dark:border-neutral-800/60 bg-neutral-50/50 p-5 dark:bg-neutral-900/30">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Prediction page</p>
-              <p className="mt-2 text-xs leading-5 text-neutral-500 dark:text-neutral-400">
-                Compare models across traditional, deep learning, and transformer categories in the Predict playground.
+      {/* Leaderboard + sidebar */}
+      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+        <ModelLeaderboard models={leaderboardModels} loading={loading} />
+
+        <div className="space-y-6">
+          <PipelineStatus connected={connected} modelCount={uniqueModels.length} experiments={experiments} />
+
+          {/* CTA card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 via-primary-700 to-indigo-800 p-6 text-white shadow-xl"
+          >
+            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-8 left-0 h-32 w-32 rounded-full bg-accent-500/20 blur-2xl" />
+            <div className="relative">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
+                <Brain size={20} className="text-white" />
+              </div>
+              <h3 className="mt-4 text-base font-bold leading-snug">
+                Ready to classify Somali text?
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-primary-100/85">
+                Compare {uniqueModels.length || 'all'} trained models with confidence
+                scores and XAI token highlights — built for research.
               </p>
+              <Link
+                to="/predict"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-primary-700 shadow-lg transition-all hover:bg-primary-50 hover:-translate-y-0.5"
+              >
+                Open Predict Playground
+                <span className="text-primary-500">→</span>
+              </Link>
             </div>
-          </CardContent>
-        </Card>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Experiments overview */}
+      <ExperimentOverview experiments={experiments} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -9,19 +9,31 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
+const applyTheme = (t: Theme) => {
+  const root = document.documentElement
+  if (t === 'dark') {
+    root.classList.add('dark')
+  } else {
+    root.classList.remove('dark')
+  }
+  localStorage.setItem('snlp-theme', t)
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme] = useState<Theme>('light')
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light'
+    const saved = localStorage.getItem('snlp-theme') as Theme | null
+    if (saved === 'dark' || saved === 'light') return saved
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    applyTheme(theme)
+  }, [theme])
 
-    localStorage.setItem('theme', 'light')
-    document.documentElement.classList.remove('dark')
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
   }, [])
-
-  const toggleTheme = () => {
-    // Theme switching is disabled. Dark mode remains inactive in the UI.
-  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
@@ -31,9 +43,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext)
-  if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider')
-  }
-  return context
+  const ctx = useContext(ThemeContext)
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider')
+  return ctx
 }

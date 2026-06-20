@@ -18,6 +18,7 @@ import {
   X,
   Sliders,
   FileSpreadsheet,
+  Trophy,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -72,6 +73,23 @@ const downloadCSV = (items: Experiment[], fileName: string) => {
   URL.revokeObjectURL(url)
 }
 
+interface ComparisonRow {
+  experiment: string; family: string; model: string
+  accuracy: number; precision: number; recall: number
+  f1: number; macro_f1: number; test_rows: number; train_scope: string
+}
+
+const familyMeta: Record<string, { label: string; color: string; dot: string }> = {
+  traditional_ml: { label: 'Traditional ML', color: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',   dot: 'bg-blue-500' },
+  deep_learning:  { label: 'Deep Learning',  color: 'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400', dot: 'bg-orange-500' },
+  transformers:   { label: 'Transformer',    color: 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400', dot: 'bg-violet-500' },
+}
+
+const expMeta: Record<string, { short: string; color: string }> = {
+  experiment_1_stopwords_included: { short: 'Exp 1', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400' },
+  experiment_2_stopwords_removed:  { short: 'Exp 2', color: 'bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400' },
+}
+
 const Experiments = () => {
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [search, setSearch] = useState('')
@@ -85,6 +103,13 @@ const Experiments = () => {
   const [isLoading, setIsLoading] = useState(true)
   const { showToast } = useToast()
 
+  // Comparison leaderboard state
+  const [comparison, setComparison] = useState<ComparisonRow[]>([])
+  const [cmpExpFilter, setCmpExpFilter] = useState<'All' | string>('All')
+  const [cmpFamFilter, setCmpFamFilter] = useState<'All' | string>('All')
+  const [cmpSearch, setCmpSearch] = useState('')
+  const [cmpLoading, setCmpLoading] = useState(true)
+
   /* ── Only show experiments matching the two allowed variants ── */
   const ALLOWED_EXPERIMENT_KEYWORDS = [
     'stopwords_included', 'stopwords included', 'included stopwords', 'experiment_1',
@@ -97,10 +122,9 @@ const Experiments = () => {
   }
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchAll = async () => {
       try {
         const response = await listExperiments()
-        // Strict filter: only the two known experiments
         setExperiments(response.data.filter(isAllowedExperiment))
       } catch (err) {
         const message = getApiErrorMessage(err, 'Unable to load experiments from the API.')
@@ -111,7 +135,19 @@ const Experiments = () => {
         setIsLoading(false)
       }
     }
-    fetch()
+    const fetchComparison = async () => {
+      try {
+        const { default: api } = await import('../services/api')
+        const res = await api.get<ComparisonRow[]>('/experiments/comparison')
+        setComparison(Array.isArray(res.data) ? res.data : [])
+      } catch {
+        setComparison([])
+      } finally {
+        setCmpLoading(false)
+      }
+    }
+    fetchAll()
+    fetchComparison()
   }, [showToast])
 
   const filteredExperiments = useMemo(() => {
@@ -144,6 +180,15 @@ const Experiments = () => {
 
   const totalPages = Math.max(1, Math.ceil(sortedExperiments.length / pageSize))
   const visibleExperiments = sortedExperiments.slice((page - 1) * pageSize, page * pageSize)
+
+  const filteredComparison = useMemo(() => {
+    return comparison.filter(r => {
+      const expOk  = cmpExpFilter === 'All' || r.experiment === cmpExpFilter
+      const famOk  = cmpFamFilter === 'All' || r.family === cmpFamFilter
+      const srchOk = !cmpSearch.trim() || r.model.toLowerCase().includes(cmpSearch.toLowerCase())
+      return expOk && famOk && srchOk
+    })
+  }, [comparison, cmpExpFilter, cmpFamFilter, cmpSearch])
 
   const chartData = useMemo(
     () =>
@@ -432,6 +477,203 @@ const Experiments = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Cross-Experiment Model Leaderboard ─────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900"
+      >
+        {/* Header */}
+        <div className="flex flex-col gap-4 border-b border-neutral-100 px-6 py-5 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/20">
+              <Trophy size={18} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-neutral-900 dark:text-white">Cross-Experiment Model Leaderboard</h2>
+              <p className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
+                {comparison.length} models — both experiments ranked by accuracy
+              </p>
+            </div>
+          </div>
+          {/* Search */}
+          <div className="relative w-full sm:w-56">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              value={cmpSearch}
+              onChange={e => setCmpSearch(e.target.value)}
+              placeholder="Search model…"
+              className="h-9 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-8 pr-3 text-xs font-semibold text-neutral-800 placeholder-neutral-400 focus:border-primary-400 focus:bg-white focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+            />
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 border-b border-neutral-100 px-6 py-3 dark:border-neutral-800">
+          {/* Experiment filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Exp:</span>
+            {['All', 'experiment_1_stopwords_included', 'experiment_2_stopwords_removed'].map(k => (
+              <button key={k} onClick={() => setCmpExpFilter(k)}
+                className={`rounded-full px-3 py-1 text-[11px] font-bold transition-all ${
+                  cmpExpFilter === k
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300'
+                }`}>
+                {k === 'All' ? 'All' : k.includes('1') ? 'Exp 1' : 'Exp 2'}
+              </button>
+            ))}
+          </div>
+          <div className="mx-2 h-5 w-px bg-neutral-200 dark:bg-neutral-700 self-center" />
+          {/* Family filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Family:</span>
+            {['All', 'traditional_ml', 'deep_learning', 'transformers'].map(k => (
+              <button key={k} onClick={() => setCmpFamFilter(k)}
+                className={`rounded-full px-3 py-1 text-[11px] font-bold transition-all ${
+                  cmpFamFilter === k
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300'
+                }`}>
+                {k === 'All' ? 'All' : familyMeta[k]?.label ?? k}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-neutral-100 dark:border-neutral-800">
+                {['#', 'Model', 'Experiment', 'Family', 'Accuracy', 'Precision', 'Recall', 'F1'].map(h => (
+                  <th key={h} className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-50 dark:divide-neutral-800/40">
+              {cmpLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-4 w-full animate-pulse rounded-lg bg-neutral-100 dark:bg-neutral-800" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filteredComparison.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-12 text-center text-sm font-medium text-neutral-400">
+                    No models match the current filters.
+                  </td>
+                </tr>
+              ) : filteredComparison.map((row, idx) => {
+                const globalRank = comparison.findIndex(r => r.model === row.model && r.experiment === row.experiment) + 1
+                const fam  = familyMeta[row.family] ?? { label: row.family, color: 'bg-neutral-100 text-neutral-600', dot: 'bg-neutral-400' }
+                const exp  = expMeta[row.experiment] ?? { short: row.experiment, color: 'bg-neutral-100 text-neutral-600' }
+                const medalEl = globalRank === 1
+                  ? <span className="text-base">🥇</span>
+                  : globalRank === 2
+                  ? <span className="text-base">🥈</span>
+                  : globalRank === 3
+                  ? <span className="text-base">🥉</span>
+                  : <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500">#{globalRank}</span>
+
+                return (
+                  <motion.tr
+                    key={`${row.experiment}-${row.model}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: idx * 0.02 }}
+                    className={`transition-colors hover:bg-neutral-50/80 dark:hover:bg-neutral-800/20 ${
+                      globalRank <= 3 ? 'bg-amber-50/30 dark:bg-amber-500/5' : ''
+                    }`}
+                  >
+                    {/* Rank */}
+                    <td className="w-12 px-5 py-3.5 text-center">{medalEl}</td>
+
+                    {/* Model */}
+                    <td className="px-5 py-3.5">
+                      <span className="font-bold text-neutral-900 dark:text-white">{row.model}</span>
+                    </td>
+
+                    {/* Experiment */}
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${exp.color}`}>
+                        {exp.short}
+                      </span>
+                    </td>
+
+                    {/* Family */}
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${fam.color}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${fam.dot}`} />
+                        {fam.label}
+                      </span>
+                    </td>
+
+                    {/* Accuracy bar */}
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-14 text-right font-mono text-xs font-black text-neutral-800 dark:text-neutral-200">
+                          {row.accuracy.toFixed(2)}%
+                        </span>
+                        <div className="relative h-2 w-24 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${row.accuracy}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut', delay: idx * 0.03 }}
+                            className={`absolute inset-y-0 left-0 rounded-full ${
+                              row.accuracy >= 90 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                              : row.accuracy >= 80 ? 'bg-gradient-to-r from-blue-500 to-indigo-400'
+                              : 'bg-gradient-to-r from-amber-400 to-orange-400'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Precision */}
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+                        {row.precision.toFixed(2)}%
+                      </span>
+                    </td>
+
+                    {/* Recall */}
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+                        {row.recall.toFixed(2)}%
+                      </span>
+                    </td>
+
+                    {/* F1 */}
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-xs font-black text-neutral-800 dark:text-neutral-200">
+                        {row.f1.toFixed(4)}
+                      </span>
+                    </td>
+                  </motion.tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer count */}
+        {!cmpLoading && filteredComparison.length > 0 && (
+          <div className="border-t border-neutral-100 px-6 py-3 dark:border-neutral-800">
+            <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500">
+              Showing {filteredComparison.length} of {comparison.length} model runs · sorted by accuracy descending
+            </p>
+          </div>
+        )}
+      </motion.div>
 
       <AnimatePresence>
         {selectedExperiment && (

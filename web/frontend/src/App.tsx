@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
@@ -5,12 +6,25 @@ import { ToastProvider } from './contexts/ToastContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PublicRoute } from './components/PublicRoute'
 import { Layout } from './components/Layout'
+
+// Eagerly loaded (critical path)
 import Login from './pages/Login'
 import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import Predict from './pages/Predict'
-import Models from './pages/Models'
-import Experiments from './pages/Experiments'
+
+// Lazily loaded (code-split)
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Predict = lazy(() => import('./pages/Predict'))
+const Models = lazy(() => import('./pages/Models'))
+const Experiments = lazy(() => import('./pages/Experiments'))
+const Analytics = lazy(() => import('./pages/Analytics'))
+const UserManagement = lazy(() => import('./pages/UserManagement'))
+const AuditLogs = lazy(() => import('./pages/AuditLogs'))
+
+const PageLoader = () => (
+  <div className="flex h-full min-h-[400px] items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-neutral-200 border-t-primary-500" />
+  </div>
+)
 
 export default function App() {
   return (
@@ -41,11 +55,63 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Dashboard />} />
-              <Route path="predict" element={<Predict />} />
-              <Route path="models" element={<Models />} />
+              <Route
+                index
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Dashboard />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="predict"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Predict />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="models"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Models />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="experiments"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Experiments />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="analytics"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Analytics />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="admin/users"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <UserManagement />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="admin/logs"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <AuditLogs />
+                  </Suspense>
+                }
+              />
               <Route path="datasets" element={<Navigate to="/" replace />} />
-              <Route path="experiments" element={<Experiments />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

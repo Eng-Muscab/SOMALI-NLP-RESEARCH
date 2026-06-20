@@ -60,9 +60,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     setToken(token)
-    const currentUser = await getCurrentUser()
-    setUser(currentUser.data)
-    setIsAuthenticated(true)
+
+    // Prefer inline user from login response (has role), fallback to /me
+    const inlineUser = response.data.user
+    if (inlineUser && inlineUser.email) {
+      setUser(inlineUser)
+      setIsAuthenticated(true)
+    } else {
+      const currentUser = await getCurrentUser()
+      setUser(currentUser.data)
+      setIsAuthenticated(true)
+    }
   }
 
   const register = async (payload: RegisterPayload) => {

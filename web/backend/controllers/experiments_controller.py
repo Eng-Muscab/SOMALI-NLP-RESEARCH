@@ -2,7 +2,8 @@ import csv
 import json
 from datetime import date
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 
 from ..config import REPO_ROOT, settings
 
@@ -32,6 +33,46 @@ def _load_summary(exp_dir):
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
+
+
+@router.get("/comparison")
+async def get_model_comparison():
+    rows = []
+    for path in settings.experiments_dir.glob("experiment_*/results/two_experiment_model_comparison.csv"):
+        with path.open(newline="", encoding="utf-8") as handle:
+            for row in csv.DictReader(handle):
+                rows.append({
+                    "experiment": row.get("experiment", ""),
+                    "family": row.get("family", ""),
+                    "model": row.get("model", ""),
+                    "accuracy": round(_as_float(row.get("accuracy")) * 100, 2),
+                    "precision": round(_as_float(row.get("precision")) * 100, 2),
+                    "recall": round(_as_float(row.get("recall")) * 100, 2),
+                    "f1": round(_as_float(row.get("f1")), 4),
+                    "macro_f1": round(_as_float(row.get("macro_f1")), 4),
+                    "test_rows": int(_as_float(str(row.get("test_rows", 0)))),
+                    "train_scope": row.get("saved_model_train_scope", ""),
+                })
+    rows.sort(key=lambda r: r["accuracy"], reverse=True)
+    return rows
+
+
+@router.get("/xai/lime/{experiment}/{index}")
+async def get_lime_explanation(experiment: str, index: int = 0):
+    """Serve a pre-computed LIME HTML explanation file."""
+    path = (
+        settings.experiments_dir
+        / experiment
+        / "xai" / "outputs" / "lime"
+        / f"lime_explanation_{index}.html"
+    )
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"LIME explanation {index} not found for {experiment}",
+        )
+    html = path.read_text(encoding="utf-8")
+    return Response(content=html, media_type="text/html; charset=utf-8")
 
 
 @router.get("")

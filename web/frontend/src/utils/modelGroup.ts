@@ -16,7 +16,7 @@ const detectCategoryFromText = (value: string | undefined): keyof typeof CATEGOR
   if (!value) return null
 
   const normalized = normalizeToken(value)
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS) as Array<[keyof typeof CATEGORY_LABELS, string[]]>) {
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS) as Array<[keyof typeof CATEGORY_LABELS, readonly string[]]>) {
     if (keywords.some((keyword) => normalized.includes(keyword))) {
       return category
     }

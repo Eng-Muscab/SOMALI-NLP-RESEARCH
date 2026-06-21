@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Brain, Layers, Target, TrendingUp } from 'lucide-react'
+import { Activity, Brain, Layers, Target, TrendingUp, Users, LineChart, ScrollText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DashboardHero } from '../components/dashboard/DashboardHero'
@@ -11,6 +11,8 @@ import { StatCard } from '../components/dashboard/StatCard'
 import api, { getApiErrorMessage } from '../services/api'
 import { listExperiments } from '../services/experimentService'
 import type { Experiment } from '../types/experiment'
+import { useAuth } from '@hooks/useAuth'
+import { isAdmin } from '@/types/auth'
 
 interface ModelData {
   id: string
@@ -112,8 +114,34 @@ const Dashboard = () => {
 
   const connected = !error
 
+  const { user } = useAuth()
+  const isAdminUser  = isAdmin(user)
+  const isViewerOnly = (user?.role ?? 'viewer') === 'viewer'
+  const isResearcher = !isViewerOnly
+
   return (
     <div className="space-y-7 pb-6">
+
+      {/* ── Admin quick links ───────────────────────────────────────────── */}
+      {isAdminUser && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            { to: '/admin/users', icon: <Users size={16} />, label: 'User Management', sub: 'Accounts & permissions', color: 'bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400' },
+            { to: '/analytics',   icon: <LineChart size={16} />, label: 'Analytics', sub: 'Usage trends', color: 'bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400' },
+            { to: '/admin/logs',  icon: <ScrollText size={16} />, label: 'Audit Logs', sub: 'Activity records', color: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400' },
+          ].map(({ to, icon, label, sub, color }) => (
+            <Link key={to} to={to}
+              className="flex items-center gap-3 rounded-2xl border border-neutral-200/70 bg-white px-4 py-3.5 transition-colors hover:border-sky-200 hover:bg-sky-50/50 dark:border-white/[0.06] dark:bg-[#0D2137] dark:hover:border-sky-500/20 dark:hover:bg-sky-500/5">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${color}`}>{icon}</div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-neutral-900 dark:text-white">{label}</p>
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">{sub}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {/* Hero */}
       <DashboardHero
         modelCount={uniqueModels.length}
@@ -171,52 +199,101 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Charts */}
-      {!loading && uniqueModels.length > 0 && (
-        <PerformanceCharts models={chartModels} bestModel={chartModels[0]} />
+      {/* ── Research content (analyst / researcher / admin / super_admin) ── */}
+      {isResearcher && (
+        <>
+          {/* Charts */}
+          {!loading && uniqueModels.length > 0 && (
+            <PerformanceCharts models={chartModels} bestModel={chartModels[0]} />
+          )}
+
+          {/* Leaderboard + sidebar */}
+          <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+            <ModelLeaderboard models={leaderboardModels} loading={loading} />
+
+            <div className="space-y-6">
+              {isAdminUser && (
+                <PipelineStatus connected={connected} modelCount={uniqueModels.length} experiments={experiments} />
+              )}
+
+              {/* CTA card */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 via-primary-700 to-indigo-800 p-6 text-white shadow-xl"
+              >
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
+                <div className="pointer-events-none absolute -bottom-8 left-0 h-32 w-32 rounded-full bg-accent-500/20 blur-2xl" />
+                <div className="relative">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
+                    <Brain size={20} className="text-white" />
+                  </div>
+                  <h3 className="mt-4 text-base font-bold leading-snug">
+                    Ready to classify Somali text?
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-primary-100/85">
+                    Compare {uniqueModels.length || 'all'} trained models with confidence
+                    scores and XAI explanations — built for research.
+                  </p>
+                  <Link
+                    to="/predict"
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-primary-700 shadow-lg transition-all hover:bg-primary-50 hover:-translate-y-0.5"
+                  >
+                    Open Predict Playground
+                    <span className="text-primary-500">→</span>
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Experiments overview */}
+          <ExperimentOverview experiments={experiments} />
+        </>
       )}
 
-      {/* Leaderboard + sidebar */}
-      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-        <ModelLeaderboard models={leaderboardModels} loading={loading} />
-
-        <div className="space-y-6">
-          <PipelineStatus connected={connected} modelCount={uniqueModels.length} experiments={experiments} />
-
-          {/* CTA card */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 via-primary-700 to-indigo-800 p-6 text-white shadow-xl"
-          >
-            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-8 left-0 h-32 w-32 rounded-full bg-accent-500/20 blur-2xl" />
-            <div className="relative">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
-                <Brain size={20} className="text-white" />
+      {/* ── Viewer simplified CTA ───────────────────────────────────────── */}
+      {isViewerOnly && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white dark:border-white/[0.06] dark:bg-[#0D2137]"
+        >
+          <div className="border-b border-neutral-100 px-6 py-5 dark:border-white/[0.06]">
+            <h2 className="text-lg font-extrabold text-neutral-900 dark:text-white">
+              Welcome to SomNLP Research Platform
+            </h2>
+            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-500">
+              A multilingual NLP system for classifying Somali news text as AI-generated or human-written.
+            </p>
+          </div>
+          <div className="grid gap-4 p-6 sm:grid-cols-2">
+            <Link to="/predict"
+              className="flex items-center gap-4 rounded-xl border border-sky-200 bg-sky-50 p-4 transition-colors hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/8 dark:hover:bg-sky-500/12">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white">
+                <Brain size={18} />
               </div>
-              <h3 className="mt-4 text-base font-bold leading-snug">
-                Ready to classify Somali text?
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-primary-100/85">
-                Compare {uniqueModels.length || 'all'} trained models with confidence
-                scores and XAI token highlights — built for research.
-              </p>
-              <Link
-                to="/predict"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-primary-700 shadow-lg transition-all hover:bg-primary-50 hover:-translate-y-0.5"
-              >
-                Open Predict Playground
-                <span className="text-primary-500">→</span>
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-      </div>
+              <div>
+                <p className="text-sm font-bold text-neutral-900 dark:text-white">Predict Text</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Classify Somali text with AI models</p>
+              </div>
+            </Link>
+            <Link to="/models"
+              className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 transition-colors hover:bg-neutral-100 dark:border-white/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/8">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                <Layers size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-neutral-900 dark:text-white">View Models</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Explore {uniqueModels.length} trained classifiers</p>
+              </div>
+            </Link>
+          </div>
+        </motion.div>
+      )}
 
-      {/* Experiments overview */}
-      <ExperimentOverview experiments={experiments} />
     </div>
   )
 }

@@ -1,610 +1,408 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from 'recharts'
-import {
-  Download,
-  Search,
-  ChevronsUpDown,
-  X,
-  Sliders,
-  FileSpreadsheet,
-  Trophy,
+  Trophy, FlaskConical, Search, X, FileSpreadsheet,
+  Download, ChevronRight, Layers, Brain, Cpu,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
 import { listExperiments } from '../services/experimentService'
 import { getApiErrorMessage } from '../services/api'
 import { useToast } from '../contexts/ToastContext'
-import type { Experiment, ExperimentStatus } from '../types/experiment'
+import type { Experiment } from '../types/experiment'
 
-const statusVariants: Record<ExperimentStatus, 'success' | 'primary' | 'warning' | 'error'> = {
-  completed: 'success',
-  running: 'primary',
-  queued: 'warning',
-  failed: 'error',
-}
-
-const sortFields = ['name', 'date', 'accuracy', 'f1'] as const
-export type SortField = (typeof sortFields)[number]
-
-const rowsPerPageOptions = [5, 8, 12]
-
-const formatDecimal = (value: number) => value.toFixed(value < 1 ? 3 : 1)
-
-const downloadCSV = (items: Experiment[], fileName: string) => {
-  if (!items.length) return
-  const headers = ['Name', 'Date', 'Status', 'Accuracy', 'F1 Score', 'Models', 'Runtime', 'Dataset', 'Notes', 'Parameters']
-  const lines = items.map((item) => {
-    const values = [
-      item.name,
-      item.date,
-      item.status,
-      item.accuracy.toString(),
-      item.f1.toString(),
-      item.models.toString(),
-      item.runtime ?? '',
-      item.dataset ?? '',
-      item.notes ?? '',
-      item.params ? JSON.stringify(item.params) : '',
-    ]
-    return values.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')
-  })
-  const csv = [headers.join(','), ...lines].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', `${fileName}.csv`)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-
+/* ── Types ────────────────────────────────────────────────────────────────── */
 interface ComparisonRow {
   experiment: string; family: string; model: string
   accuracy: number; precision: number; recall: number
-  f1: number; macro_f1: number; test_rows: number; train_scope: string
+  f1: number; macro_f1: number; test_rows: number
 }
 
-const familyMeta: Record<string, { label: string; color: string; dot: string }> = {
-  traditional_ml: { label: 'Traditional ML', color: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',   dot: 'bg-blue-500' },
-  deep_learning:  { label: 'Deep Learning',  color: 'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400', dot: 'bg-orange-500' },
-  transformers:   { label: 'Transformer',    color: 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400', dot: 'bg-violet-500' },
+/* ── Constants ────────────────────────────────────────────────────────────── */
+const EXP_META: Record<string, { short: string; label: string; gradient: string; badge: string }> = {
+  experiment_1_stopwords_included: {
+    short: 'Exp 1', label: 'Stopwords Included',
+    gradient: 'from-violet-600 via-purple-600 to-indigo-700',
+    badge: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
+  },
+  experiment_2_stopwords_removed: {
+    short: 'Exp 2', label: 'Stopwords Removed',
+    gradient: 'from-sky-600 via-cyan-600 to-teal-600',
+    badge: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
+  },
 }
 
-const expMeta: Record<string, { short: string; color: string }> = {
-  experiment_1_stopwords_included: { short: 'Exp 1', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400' },
-  experiment_2_stopwords_removed:  { short: 'Exp 2', color: 'bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400' },
+const FAMILY_META: Record<string, { label: string; color: string; dot: string; icon: typeof Layers }> = {
+  traditional_ml: { label: 'Traditional ML', color: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',   dot: 'bg-blue-500', icon: Layers },
+  deep_learning:  { label: 'Deep Learning',  color: 'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400', dot: 'bg-orange-500', icon: Brain },
+  transformers:   { label: 'Transformer',    color: 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400', dot: 'bg-violet-500', icon: Cpu },
 }
 
-const Experiments = () => {
-  const [experiments, setExperiments] = useState<Experiment[]>([])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | ExperimentStatus>('All')
-  const [sortField, setSortField] = useState<SortField>('date')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(8)
-  const [selectedExperiment, setSelectedExperiment] = useState<Experiment | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const { showToast } = useToast()
+const downloadCSV = (items: Experiment[], name: string) => {
+  if (!items.length) return
+  const headers = ['Name', 'Date', 'Status', 'Accuracy', 'F1', 'Models', 'Dataset', 'Notes']
+  const rows = items.map(i => [i.name, i.date, i.status, i.accuracy, i.f1, i.models, i.dataset ?? '', i.notes ?? ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+  const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.setAttribute('download', `${name}.csv`)
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+}
 
-  // Comparison leaderboard state
-  const [comparison, setComparison] = useState<ComparisonRow[]>([])
-  const [cmpExpFilter, setCmpExpFilter] = useState<'All' | string>('All')
-  const [cmpFamFilter, setCmpFamFilter] = useState<'All' | string>('All')
-  const [cmpSearch, setCmpSearch] = useState('')
-  const [cmpLoading, setCmpLoading] = useState(true)
-
-  /* ── Only show experiments matching the two allowed variants ── */
-  const ALLOWED_EXPERIMENT_KEYWORDS = [
-    'stopwords_included', 'stopwords included', 'included stopwords', 'experiment_1',
-    'stopwords_removed', 'stopwords removed', 'removed stopwords', 'experiment_2',
-  ]
-
-  const isAllowedExperiment = (exp: Experiment) => {
-    const haystack = `${exp.id} ${exp.name}`.toLowerCase()
-    return ALLOWED_EXPERIMENT_KEYWORDS.some((kw) => haystack.includes(kw))
+/* ── Sub-components ───────────────────────────────────────────────────────── */
+function ExperimentCard({ exp, comparison, onClick }: {
+  exp: Experiment
+  comparison: ComparisonRow[]
+  onClick: () => void
+}) {
+  const meta   = EXP_META[exp.id] ?? { short: exp.id, label: exp.name, gradient: 'from-neutral-600 to-neutral-800', badge: '' }
+  const myRows = comparison.filter(r => r.experiment === exp.id)
+  const famCounts = {
+    traditional_ml: myRows.filter(r => r.family === 'traditional_ml').length,
+    deep_learning:  myRows.filter(r => r.family === 'deep_learning').length,
+    transformers:   myRows.filter(r => r.family === 'transformers').length,
   }
-
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const response = await listExperiments()
-        setExperiments(response.data.filter(isAllowedExperiment))
-      } catch (err) {
-        const message = getApiErrorMessage(err, 'Unable to load experiments from the API.')
-        setLoadError(message)
-        showToast(message, 'error')
-        setExperiments([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    const fetchComparison = async () => {
-      try {
-        const { default: api } = await import('../services/api')
-        const res = await api.get<ComparisonRow[]>('/experiments/comparison')
-        setComparison(Array.isArray(res.data) ? res.data : [])
-      } catch {
-        setComparison([])
-      } finally {
-        setCmpLoading(false)
-      }
-    }
-    fetchAll()
-    fetchComparison()
-  }, [showToast])
-
-  const filteredExperiments = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
-    return experiments.filter((experiment) => {
-      const matchesSearch =
-        !normalizedSearch ||
-        experiment.name.toLowerCase().includes(normalizedSearch) ||
-        experiment.dataset?.toLowerCase().includes(normalizedSearch)
-      const matchesStatus = statusFilter === 'All' || experiment.status === statusFilter
-      return matchesSearch && matchesStatus
-    })
-  }, [experiments, search, statusFilter])
-
-  const sortedExperiments = useMemo(() => {
-    return [...filteredExperiments].sort((a, b) => {
-      const direction = sortDirection === 'asc' ? 1 : -1
-      if (sortField === 'name') {
-        return a.name.localeCompare(b.name) * direction
-      }
-      if (sortField === 'date') {
-        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * direction
-      }
-      if (sortField === 'accuracy') {
-        return (a.accuracy - b.accuracy) * direction
-      }
-      return (a.f1 - b.f1) * direction
-    })
-  }, [filteredExperiments, sortField, sortDirection])
-
-  const totalPages = Math.max(1, Math.ceil(sortedExperiments.length / pageSize))
-  const visibleExperiments = sortedExperiments.slice((page - 1) * pageSize, page * pageSize)
-
-  const filteredComparison = useMemo(() => {
-    return comparison.filter(r => {
-      const expOk  = cmpExpFilter === 'All' || r.experiment === cmpExpFilter
-      const famOk  = cmpFamFilter === 'All' || r.family === cmpFamFilter
-      const srchOk = !cmpSearch.trim() || r.model.toLowerCase().includes(cmpSearch.toLowerCase())
-      return expOk && famOk && srchOk
-    })
-  }, [comparison, cmpExpFilter, cmpFamFilter, cmpSearch])
-
-  const chartData = useMemo(
-    () =>
-      sortedExperiments
-        .slice(0, 8)
-        .map((experiment) => ({
-          name: experiment.name,
-          accuracy: experiment.accuracy,
-          f1: experiment.f1,
-        }))
-        .reverse(),
-    [sortedExperiments]
-  )
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection('desc')
-    }
-    setPage(1)
-  }
-
-  const renderSortIndicator = (field: SortField) => {
-    if (sortField !== field) return null
-    return sortDirection === 'asc' ? ' ↑' : ' ↓'
-  }
-
-  const handleExportView = () => {
-    downloadCSV(sortedExperiments, 'experiment-export')
-  }
-
-  const handleExportExperiment = (experiment: Experiment) => {
-    downloadCSV([experiment], `experiment-${experiment.id}`)
-  }
+  const bestModel = (exp.params as Record<string, unknown>)?.best_model as string | undefined
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white mb-2">Experiments</h1>
-        <p className="text-neutral-550 dark:text-neutral-400 font-medium">
-          Track historical training runs, analyze metrics trend, and inspect hyperparameter details
-        </p>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="group relative overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-sm transition-all duration-300 hover:shadow-lg dark:border-neutral-800/60 dark:bg-neutral-900"
+    >
+      {/* Gradient top bar */}
+      <div className={`h-1.5 w-full bg-gradient-to-r ${meta.gradient}`} />
 
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest ${meta.badge}`}>
+              {meta.short}
+            </span>
+            <h3 className="mt-2 text-base font-extrabold leading-tight text-neutral-900 dark:text-white">
+              {meta.label}
+            </h3>
+            <p className="mt-0.5 text-[11px] text-neutral-400 dark:text-neutral-500">{exp.date}</p>
+          </div>
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${meta.gradient} shadow-md`}>
+            <FlaskConical size={18} className="text-white" />
+          </div>
+        </div>
+
+        {/* Key metrics */}
+        <div className="mb-5 grid grid-cols-3 gap-3">
+          {[
+            { label: 'Best Acc.', value: `${exp.accuracy.toFixed(1)}%` },
+            { label: 'Best F1',  value: exp.f1.toFixed(3) },
+            { label: 'Models',   value: exp.models },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl bg-neutral-50 p-3 dark:bg-neutral-800/40">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">{label}</p>
+              <p className="mt-0.5 text-sm font-black text-neutral-900 dark:text-white">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Best model */}
+        {bestModel && (
+          <div className="mb-4 rounded-xl border border-neutral-100 bg-neutral-50/60 px-3.5 py-2.5 dark:border-neutral-800 dark:bg-neutral-800/20">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Top Model</p>
+            <p className="mt-0.5 text-xs font-bold text-neutral-700 dark:text-neutral-200">{bestModel}</p>
+          </div>
+        )}
+
+        {/* Family breakdown */}
+        <div className="mb-5 flex gap-2">
+          {Object.entries(famCounts).map(([key, count]) => {
+            const fm = FAMILY_META[key]
+            return (
+              <span key={key} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${fm.color}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${fm.dot}`} />
+                {count}
+              </span>
+            )
+          })}
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <button onClick={onClick}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r ${meta.gradient} py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:opacity-90`}>
+            View Details <ChevronRight size={13} />
+          </button>
+          <button onClick={() => downloadCSV([exp], `experiment-${exp.id}`)}
+            className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-xs font-bold text-neutral-600 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+            <Download size={13} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+/* ── Main Component ───────────────────────────────────────────────────────── */
+export default function Experiments() {
+  const [experiments, setExperiments]   = useState<Experiment[]>([])
+  const [comparison, setComparison]     = useState<ComparisonRow[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [cmpLoading, setCmpLoading]     = useState(true)
+  const [loadError, setLoadError]       = useState<string | null>(null)
+  const [selected, setSelected]         = useState<Experiment | null>(null)
+
+  const [expTab, setExpTab]     = useState<'all' | string>('all')
+  const [famTab, setFamTab]     = useState<'all' | string>('all')
+  const [cmpSearch, setCmpSearch] = useState('')
+
+  const { showToast } = useToast()
+
+  const ALLOWED = ['experiment_1_stopwords_included', 'experiment_2_stopwords_removed']
+
+  useEffect(() => {
+    listExperiments()
+      .then(r => setExperiments(r.data.filter(e => ALLOWED.includes(e.id)).sort((a, b) => a.id.localeCompare(b.id))))
+      .catch(err => { const m = getApiErrorMessage(err, 'Unable to load experiments.'); setLoadError(m); showToast(m, 'error') })
+      .finally(() => setLoading(false))
+
+    import('../services/api').then(({ default: api }) =>
+      api.get<ComparisonRow[]>('/experiments/comparison')
+        .then(r => {
+            const raw: ComparisonRow[] = Array.isArray(r.data) ? r.data : []
+            const seen = new Set<string>()
+            const deduped = raw.filter(row => {
+              const key = `${row.experiment}::${row.model}`
+              if (seen.has(key)) return false
+              seen.add(key)
+              return true
+            })
+            setComparison(deduped)
+          })
+        .catch(() => setComparison([]))
+        .finally(() => setCmpLoading(false))
+    )
+  }, [showToast])
+
+  const filteredCmp = useMemo(() => comparison.filter(r => {
+    const eOk = expTab === 'all' || r.experiment === expTab
+    const fOk = famTab === 'all' || r.family === famTab
+    const sOk = !cmpSearch.trim() || r.model.toLowerCase().includes(cmpSearch.toLowerCase())
+    return eOk && fOk && sOk
+  }), [comparison, expTab, famTab, cmpSearch])
+
+  /* Bar chart data — top 10 models by accuracy */
+  const barData = useMemo(() =>
+    filteredCmp.slice(0, 12).map(r => ({
+      name: r.model.replace(/_/g, ' ').slice(0, 18),
+      accuracy: r.accuracy,
+      exp: r.experiment.includes('1') ? 'Exp 1' : 'Exp 2',
+    })).reverse(),
+    [filteredCmp])
+
+  const cardCls = 'overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900'
+
+  return (
+    <div className="space-y-6 pb-12">
+
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-800 px-7 py-7 text-white shadow-xl"
+      >
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-10 left-1/3 h-40 w-40 rounded-full bg-violet-300/10 blur-3xl" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <div className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-200">
+              <FlaskConical size={12} /> Somali NLP Research
+            </div>
+            <h1 className="text-[1.75rem] font-extrabold tracking-tight">Experiments</h1>
+            <p className="mt-1 text-sm text-violet-200/90">
+              {loading ? 'Loading…' : `${experiments.length} ablation experiments · ${comparison.length} model evaluations`}
+            </p>
+          </div>
+          {!loading && (
+            <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5">
+              <Trophy size={14} className="text-amber-300" />
+              <span className="text-sm font-bold">{comparison.length} models ranked</span>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* ── Error ────────────────────────────────────────────────────── */}
       {loadError && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-200"
-        >
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           {loadError}
-        </motion.div>
+        </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Ablation Runs</h2>
-                <p className="text-xs text-neutral-450 dark:text-neutral-500 font-medium">
-                  Search, filter, and compare NLP evaluation experiments.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-                <Input
-                  icon={<Search size={15} />}
-                  placeholder="Search experiments..."
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value)
-                    setPage(1)
-                  }}
-                  className="w-full sm:w-64"
-                />
-                <Button variant="outline" size="sm" icon={<Download size={14} />} onClick={handleExportView} className="text-xs py-2">
-                  Export CSV
-                </Button>
-              </div>
+      {/* ── Experiment Cards ─────────────────────────────────────────── */}
+      {loading ? (
+        <div className="grid gap-6 sm:grid-cols-2">
+          {[0, 1].map(i => (
+            <div key={i} className={`${cardCls} h-72 animate-pulse`}>
+              <div className="h-1.5 w-full bg-neutral-200 dark:bg-neutral-700" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap gap-2">
-              {(['All', 'completed', 'running', 'queued', 'failed'] as const).map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter(status === 'All' ? 'All' : status)
-                    setPage(1)
-                  }}
-                  className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-300 border ${
-                    statusFilter === status
-                      ? 'bg-primary-600 border-primary-600 text-white shadow-md shadow-primary-500/10'
-                      : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-700'
-                  }`}
-                >
-                  {status.toUpperCase()}
-                </button>
-              ))}
-            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2">
+          {experiments.map(exp => (
+            <ExperimentCard key={exp.id} exp={exp} comparison={comparison} onClick={() => setSelected(exp)} />
+          ))}
+        </div>
+      )}
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card className="bg-neutral-50/50 dark:bg-neutral-900/10 border-neutral-100 dark:border-neutral-800/40">
-                <CardHeader className="py-4 border-b-neutral-100 dark:border-b-neutral-800/40">
-                  <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-200">Accuracy Comparison</h3>
-                </CardHeader>
-                <CardContent className="h-64 px-2 py-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}> 
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
-                      <XAxis dataKey="name" stroke="rgba(148,163,184,0.4)" tick={{ fontSize: 9 }} interval={0} />
-                      <YAxis stroke="rgba(148,163,184,0.4)" tick={{ fontSize: 10 }} domain={[0, 100]} />
-                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12 }} />
-                      <Bar dataKey="accuracy" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+      {/* ── Model Leaderboard ────────────────────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={cardCls}>
 
-              <Card className="bg-neutral-50/50 dark:bg-neutral-900/10 border-neutral-100 dark:border-b-neutral-800/40">
-                <CardHeader className="py-4 border-b-neutral-100 dark:border-b-neutral-800/40">
-                  <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-200">F1 Curve Dynamics</h3>
-                </CardHeader>
-                <CardContent className="h-64 px-2 py-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
-                      <XAxis dataKey="name" stroke="rgba(148,163,184,0.4)" tick={{ fontSize: 9 }} interval={0} />
-                      <YAxis stroke="rgba(148,163,184,0.4)" tick={{ fontSize: 10 }} domain={[0, 1.0]} />
-                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12 }} />
-                      <Line type="monotone" dataKey="f1" stroke="#14b8a6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit">
-          <CardHeader>
-            <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Summary Metrics</h3>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-950/20">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Total runs</p>
-              <p className="mt-2 text-3xl font-black text-neutral-900 dark:text-white">{experiments.length}</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-950/20">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Filtered set</p>
-              <p className="mt-2 text-3xl font-black text-neutral-900 dark:text-white">{sortedExperiments.length}</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-950/20">
-              <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Rows per page</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {rowsPerPageOptions.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setPageSize(option)
-                      setPage(1)
-                    }}
-                    className={`rounded-full px-3.5 py-1 text-xs font-bold transition-all duration-300 border ${
-                      pageSize === option
-                        ? 'bg-primary-600 border-primary-600 text-white shadow-md'
-                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-350 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-350 dark:hover:border-neutral-700'
-                    }`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Run History Table</h3>
-              <p className="text-xs text-neutral-450 dark:text-neutral-500 font-medium">Click headers to sort or select a row for details.</p>
-            </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-neutral-150/80 bg-neutral-50/50 px-3.5 py-1.5 text-2xs font-extrabold uppercase tracking-wide text-neutral-500 dark:border-neutral-800/60 dark:bg-neutral-900/30 dark:text-neutral-400">
-              <Sliders size={12} className="text-primary-500" />
-              {isLoading ? 'Fetching data...' : `Order: ${sortField} ${sortDirection}`}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-neutral-150 text-neutral-500 dark:border-neutral-800/80 dark:text-neutral-400 font-semibold">
-                  <th className="px-4 py-3.5 cursor-pointer text-xs font-bold uppercase tracking-wider" onClick={() => toggleSort('name')}>
-                    <div className="flex items-center gap-1">Name <ChevronsUpDown size={13} className="text-neutral-400" />{renderSortIndicator('name')}</div>
-                  </th>
-                  <th className="px-4 py-3.5 cursor-pointer text-xs font-bold uppercase tracking-wider" onClick={() => toggleSort('date')}>
-                    <div className="flex items-center gap-1">Date <ChevronsUpDown size={13} className="text-neutral-400" />{renderSortIndicator('date')}</div>
-                  </th>
-                  <th className="px-4 py-3.5 text-xs font-bold uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3.5 cursor-pointer text-xs font-bold uppercase tracking-wider" onClick={() => toggleSort('accuracy')}>
-                    <div className="flex items-center gap-1">Accuracy <ChevronsUpDown size={13} className="text-neutral-400" />{renderSortIndicator('accuracy')}</div>
-                  </th>
-                  <th className="px-4 py-3.5 cursor-pointer text-xs font-bold uppercase tracking-wider" onClick={() => toggleSort('f1')}>
-                    <div className="flex items-center gap-1">F1 Score <ChevronsUpDown size={13} className="text-neutral-400" />{renderSortIndicator('f1')}</div>
-                  </th>
-                  <th className="px-4 py-3.5 text-xs font-bold uppercase tracking-wider">Models</th>
-                  <th className="px-4 py-3.5 text-xs font-bold uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/40">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-neutral-550 dark:text-neutral-500">
-                      Loading historical runs...
-                    </td>
-                  </tr>
-                ) : visibleExperiments.map((experiment) => (
-                  <tr
-                    key={experiment.id}
-                    className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/10"
-                  >
-                    <td className="px-4 py-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedExperiment(experiment)}
-                        className="text-left font-bold text-neutral-900 hover:text-primary-600 dark:text-white dark:hover:text-primary-450 truncate max-w-[180px]"
-                      >
-                        {experiment.name}
-                      </button>
-                    </td>
-                    <td className="px-4 py-4 text-neutral-500 dark:text-neutral-400 font-medium">{experiment.date}</td>
-                    <td className="px-4 py-4">
-                      <Badge variant={statusVariants[experiment.status]}>{experiment.status}</Badge>
-                    </td>
-                    <td className="px-4 py-4 text-neutral-900 dark:text-white font-bold">{experiment.accuracy}%</td>
-                    <td className="px-4 py-4 text-neutral-900 dark:text-white font-bold">{formatDecimal(experiment.f1)}</td>
-                    <td className="px-4 py-4 text-neutral-500 dark:text-neutral-400 font-medium">{experiment.models}</td>
-                    <td className="px-4 py-4 space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => setSelectedExperiment(experiment)} className="text-2xs py-1 px-2.5">
-                        Details
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleExportExperiment(experiment)} icon={<Download size={13} />} className="text-2xs py-1 px-2 text-neutral-500 hover:text-neutral-800 dark:text-neutral-450 dark:hover:text-white">
-                        Export
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs font-semibold text-neutral-450 dark:text-neutral-500">
-              Showing {visibleExperiments.length} of {sortedExperiments.length} experiments.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-                className="text-xs py-1.5 px-3"
-              >
-                Previous
-              </Button>
-              <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 px-2">
-                Page {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-                className="text-xs py-1.5 px-3"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Cross-Experiment Model Leaderboard ─────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900"
-      >
         {/* Header */}
         <div className="flex flex-col gap-4 border-b border-neutral-100 px-6 py-5 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-orange-500/20">
               <Trophy size={18} className="text-white" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-neutral-900 dark:text-white">Cross-Experiment Model Leaderboard</h2>
-              <p className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
-                {comparison.length} models — both experiments ranked by accuracy
+              <h2 className="text-base font-extrabold text-neutral-900 dark:text-white">Model Leaderboard</h2>
+              <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                All models ranked by accuracy across both experiments
               </p>
             </div>
           </div>
-          {/* Search */}
-          <div className="relative w-full sm:w-56">
+          <div className="relative w-full sm:w-52">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              value={cmpSearch}
-              onChange={e => setCmpSearch(e.target.value)}
-              placeholder="Search model…"
-              className="h-9 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-8 pr-3 text-xs font-semibold text-neutral-800 placeholder-neutral-400 focus:border-primary-400 focus:bg-white focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-            />
+            <input value={cmpSearch} onChange={e => setCmpSearch(e.target.value)} placeholder="Search model…"
+              className="h-9 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-8 pr-3 text-xs font-semibold text-neutral-800 placeholder-neutral-400 focus:border-primary-400 focus:bg-white focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-white" />
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 border-b border-neutral-100 px-6 py-3 dark:border-neutral-800">
-          {/* Experiment filter */}
+        <div className="flex flex-wrap items-center gap-3 border-b border-neutral-100 px-6 py-3 dark:border-neutral-800">
+          {/* Experiment tabs */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Exp:</span>
-            {['All', 'experiment_1_stopwords_included', 'experiment_2_stopwords_removed'].map(k => (
-              <button key={k} onClick={() => setCmpExpFilter(k)}
+            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Experiment:</span>
+            {[
+              { key: 'all', label: 'Both' },
+              { key: 'experiment_1_stopwords_included', label: 'Exp 1 — Stopwords Included' },
+              { key: 'experiment_2_stopwords_removed',  label: 'Exp 2 — Stopwords Removed' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setExpTab(key)}
                 className={`rounded-full px-3 py-1 text-[11px] font-bold transition-all ${
-                  cmpExpFilter === k
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300'
+                  expTab === key
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
                 }`}>
-                {k === 'All' ? 'All' : k.includes('1') ? 'Exp 1' : 'Exp 2'}
+                {label}
               </button>
             ))}
           </div>
-          <div className="mx-2 h-5 w-px bg-neutral-200 dark:bg-neutral-700 self-center" />
-          {/* Family filter */}
+          <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
+          {/* Family tabs */}
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Family:</span>
-            {['All', 'traditional_ml', 'deep_learning', 'transformers'].map(k => (
-              <button key={k} onClick={() => setCmpFamFilter(k)}
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'traditional_ml', label: 'Traditional ML' },
+              { key: 'deep_learning',  label: 'Deep Learning' },
+              { key: 'transformers',   label: 'Transformer' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setFamTab(key)}
                 className={`rounded-full px-3 py-1 text-[11px] font-bold transition-all ${
-                  cmpFamFilter === k
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300'
+                  famTab === key
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
                 }`}>
-                {k === 'All' ? 'All' : familyMeta[k]?.label ?? k}
+                {label}
               </button>
             ))}
           </div>
         </div>
 
+        {/* Bar chart — top models */}
+        {!cmpLoading && filteredCmp.length > 0 && (
+          <div className="border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-400">Accuracy Overview (top 12)</p>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 40, left: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="rgba(148,163,184,0.4)" tickFormatter={v => `${v}%`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={110} stroke="rgba(148,163,184,0.4)" />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                  <Bar dataKey="accuracy" radius={[0, 4, 4, 0]}
+                    fill="url(#accGrad)"
+                  />
+                  <defs>
+                    <linearGradient id="accGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#06b6d4" />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[700px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-100 dark:border-neutral-800">
-                {['#', 'Model', 'Experiment', 'Family', 'Accuracy', 'Precision', 'Recall', 'F1'].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
-                    {h}
-                  </th>
+                {['#', 'Model', 'Experiment', 'Family', 'Accuracy', 'F1', 'Precision', 'Recall'].map(h => (
+                  <th key={h} className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-50 dark:divide-neutral-800/40">
               {cmpLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
+                Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 8 }).map((_, j) => (
-                      <td key={j} className="px-5 py-4">
+                      <td key={j} className="px-5 py-3.5">
                         <div className="h-4 w-full animate-pulse rounded-lg bg-neutral-100 dark:bg-neutral-800" />
                       </td>
                     ))}
                   </tr>
                 ))
-              ) : filteredComparison.length === 0 ? (
+              ) : filteredCmp.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-sm font-medium text-neutral-400">
-                    No models match the current filters.
+                  <td colSpan={8} className="px-5 py-14 text-center">
+                    <div className="flex flex-col items-center gap-2 text-neutral-400">
+                      <Trophy size={28} className="text-neutral-200 dark:text-neutral-700" />
+                      <p className="text-sm font-semibold">No models match the current filters.</p>
+                    </div>
                   </td>
                 </tr>
-              ) : filteredComparison.map((row, idx) => {
+              ) : filteredCmp.map((row, idx) => {
                 const globalRank = comparison.findIndex(r => r.model === row.model && r.experiment === row.experiment) + 1
-                const fam  = familyMeta[row.family] ?? { label: row.family, color: 'bg-neutral-100 text-neutral-600', dot: 'bg-neutral-400' }
-                const exp  = expMeta[row.experiment] ?? { short: row.experiment, color: 'bg-neutral-100 text-neutral-600' }
-                const medalEl = globalRank === 1
-                  ? <span className="text-base">🥇</span>
-                  : globalRank === 2
-                  ? <span className="text-base">🥈</span>
-                  : globalRank === 3
-                  ? <span className="text-base">🥉</span>
-                  : <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500">#{globalRank}</span>
+                const fam  = FAMILY_META[row.family] ?? { label: row.family, color: 'bg-neutral-100 text-neutral-600', dot: 'bg-neutral-400' }
+                const exp  = EXP_META[row.experiment] ?? { short: row.experiment, badge: 'bg-neutral-100 text-neutral-600' }
+                const medal = globalRank === 1 ? '🥇' : globalRank === 2 ? '🥈' : globalRank === 3 ? '🥉' : null
+                const isTop3 = globalRank <= 3
 
                 return (
-                  <motion.tr
-                    key={`${row.experiment}-${row.model}`}
+                  <motion.tr key={`${row.experiment}-${row.model}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: idx * 0.02 }}
-                    className={`transition-colors hover:bg-neutral-50/80 dark:hover:bg-neutral-800/20 ${
-                      globalRank <= 3 ? 'bg-amber-50/30 dark:bg-amber-500/5' : ''
-                    }`}
+                    transition={{ delay: Math.min(idx * 0.015, 0.3) }}
+                    className={`transition-colors hover:bg-neutral-50/80 dark:hover:bg-neutral-800/20 ${isTop3 ? 'bg-amber-50/40 dark:bg-amber-500/5' : ''}`}
                   >
                     {/* Rank */}
-                    <td className="w-12 px-5 py-3.5 text-center">{medalEl}</td>
+                    <td className="w-10 px-5 py-3.5 text-center">
+                      {medal
+                        ? <span className="text-lg leading-none">{medal}</span>
+                        : <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500">#{globalRank}</span>}
+                    </td>
 
                     {/* Model */}
                     <td className="px-5 py-3.5">
-                      <span className="font-bold text-neutral-900 dark:text-white">{row.model}</span>
+                      <span className={`text-sm font-bold ${isTop3 ? 'text-neutral-900 dark:text-white' : 'text-neutral-700 dark:text-neutral-300'}`}>
+                        {row.model}
+                      </span>
                     </td>
 
                     {/* Experiment */}
                     <td className="px-5 py-3.5">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${exp.color}`}>
+                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${exp.badge}`}>
                         {exp.short}
                       </span>
                     </td>
@@ -612,25 +410,25 @@ const Experiments = () => {
                     {/* Family */}
                     <td className="px-5 py-3.5">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${fam.color}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${fam.dot}`} />
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${fam.dot}`} />
                         {fam.label}
                       </span>
                     </td>
 
-                    {/* Accuracy bar */}
+                    {/* Accuracy with bar */}
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <span className="w-14 text-right font-mono text-xs font-black text-neutral-800 dark:text-neutral-200">
                           {row.accuracy.toFixed(2)}%
                         </span>
-                        <div className="relative h-2 w-24 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        <div className="relative h-2 w-20 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${row.accuracy}%` }}
-                            transition={{ duration: 0.8, ease: 'easeOut', delay: idx * 0.03 }}
+                            transition={{ duration: 0.7, ease: 'easeOut', delay: idx * 0.02 }}
                             className={`absolute inset-y-0 left-0 rounded-full ${
                               row.accuracy >= 90 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                              : row.accuracy >= 80 ? 'bg-gradient-to-r from-blue-500 to-indigo-400'
+                              : row.accuracy >= 80 ? 'bg-gradient-to-r from-violet-500 to-indigo-400'
                               : 'bg-gradient-to-r from-amber-400 to-orange-400'
                             }`}
                           />
@@ -638,25 +436,19 @@ const Experiments = () => {
                       </div>
                     </td>
 
+                    {/* F1 */}
+                    <td className="px-5 py-3.5 font-mono text-xs font-black text-neutral-800 dark:text-neutral-200">
+                      {row.f1.toFixed(4)}
+                    </td>
+
                     {/* Precision */}
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs font-semibold text-neutral-600 dark:text-neutral-400">
-                        {row.precision.toFixed(2)}%
-                      </span>
+                    <td className="px-5 py-3.5 font-mono text-xs text-neutral-500 dark:text-neutral-400">
+                      {row.precision.toFixed(2)}%
                     </td>
 
                     {/* Recall */}
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs font-semibold text-neutral-600 dark:text-neutral-400">
-                        {row.recall.toFixed(2)}%
-                      </span>
-                    </td>
-
-                    {/* F1 */}
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs font-black text-neutral-800 dark:text-neutral-200">
-                        {row.f1.toFixed(4)}
-                      </span>
+                    <td className="px-5 py-3.5 font-mono text-xs text-neutral-500 dark:text-neutral-400">
+                      {row.recall.toFixed(2)}%
                     </td>
                   </motion.tr>
                 )
@@ -665,94 +457,133 @@ const Experiments = () => {
           </table>
         </div>
 
-        {/* Footer count */}
-        {!cmpLoading && filteredComparison.length > 0 && (
+        {/* Footer */}
+        {!cmpLoading && filteredCmp.length > 0 && (
           <div className="border-t border-neutral-100 px-6 py-3 dark:border-neutral-800">
             <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500">
-              Showing {filteredComparison.length} of {comparison.length} model runs · sorted by accuracy descending
+              Showing {filteredCmp.length} of {comparison.length} model evaluations · sorted by accuracy
             </p>
           </div>
         )}
       </motion.div>
 
+      {/* ── Experiment Detail Drawer ─────────────────────────────────── */}
       <AnimatePresence>
-        {selectedExperiment && (
+        {selected && (
           <>
             <motion.div
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedExperiment(null)}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelected(null)}
             />
             <motion.aside
-              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col bg-white border-l border-neutral-100 dark:border-neutral-800/80 p-6 shadow-2xl dark:bg-neutral-900 overflow-y-auto"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'tween', duration: 0.3, ease: 'easeInOut' }}
+              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900"
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'tween', duration: 0.28, ease: 'easeInOut' }}
             >
-              <div className="mb-6 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800/60 pb-5">
-                <div>
-                  <p className="text-3xs uppercase tracking-[0.2em] font-extrabold text-neutral-400 dark:text-neutral-500">Experiment details</p>
-                  <h2 className="mt-1 text-xl font-black text-neutral-900 dark:text-white leading-tight">{selectedExperiment.name}</h2>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close details drawer"
-                  onClick={() => setSelectedExperiment(null)}
-                  className="rounded-xl border border-neutral-200 p-2 text-neutral-500 hover:text-neutral-700 dark:border-neutral-800 dark:text-neutral-400 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-950/20 transition duration-200"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-4 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <p className="text-3xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Status</p>
-                  <Badge variant={statusVariants[selectedExperiment.status]} className="mt-2">{selectedExperiment.status}</Badge>
-                </div>
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-4 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <p className="text-3xs font-semibold text-neutral-455 dark:text-neutral-500 uppercase tracking-wider">Dataset Used</p>
-                  <p className="mt-2 text-sm font-bold text-neutral-900 dark:text-white truncate" title={selectedExperiment.dataset}>{selectedExperiment.dataset ?? 'Unknown'}</p>
-                </div>
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-4 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <p className="text-3xs font-semibold text-neutral-455 dark:text-neutral-500 uppercase tracking-wider">Accuracy</p>
-                  <p className="mt-2 text-base font-black text-neutral-900 dark:text-white">{selectedExperiment.accuracy}%</p>
-                </div>
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-4 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <p className="text-3xs font-semibold text-neutral-455 dark:text-neutral-500 uppercase tracking-wider">F1 Score</p>
-                  <p className="mt-2 text-base font-black text-neutral-900 dark:text-white">{formatDecimal(selectedExperiment.f1)}</p>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-5 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <p className="text-3xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Training Runtime</p>
-                  <p className="mt-2 text-sm font-bold text-neutral-900 dark:text-white">{selectedExperiment.runtime ?? 'N/A'}</p>
-                </div>
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-5 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <p className="text-3xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Research Notes</p>
-                  <p className="mt-2 text-xs leading-6 font-medium text-neutral-600 dark:text-neutral-350">{selectedExperiment.notes ?? 'No notes available.'}</p>
-                </div>
-                <div className="rounded-2xl border border-neutral-150/60 bg-neutral-50/50 p-5 dark:border-neutral-800/40 dark:bg-neutral-900/30">
-                  <div className="flex items-center justify-between">
-                    <p className="text-3xs font-semibold text-neutral-450 dark:text-neutral-500 uppercase tracking-wider">Hyperparameters</p>
-                    <Button size="sm" variant="ghost" onClick={() => handleExportExperiment(selectedExperiment)} icon={<FileSpreadsheet size={13} />} className="text-3xs py-1 px-2 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 font-bold">
-                      Export Run
-                    </Button>
-                  </div>
-                  <div className="mt-4 space-y-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
-                    {selectedExperiment.params ? (
-                      Object.entries(selectedExperiment.params).map(([key, value]) => (
-                        <div key={key} className="flex items-center justify-between rounded-xl border border-neutral-100 bg-white px-3.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.01)] dark:border-neutral-800 dark:bg-neutral-950">
-                          <span className="font-bold text-neutral-700 dark:text-neutral-300">{key}</span>
-                          <span className="text-neutral-500 dark:text-neutral-400 font-mono text-2xs">{String(value)}</span>
+              {/* Gradient header */}
+              {(() => {
+                const m = EXP_META[selected.id] ?? { short: '', label: selected.name, gradient: 'from-neutral-600 to-neutral-800', badge: '' }
+                return (
+                  <div className={`relative overflow-hidden bg-gradient-to-br ${m.gradient} px-6 py-7 text-white`}>
+                    <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
+                    <div className="relative flex items-start justify-between gap-3">
+                      <div>
+                        <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest">{m.short}</span>
+                        <h2 className="mt-2 text-xl font-black leading-tight">{m.label}</h2>
+                        <p className="mt-1 text-sm text-white/70">{selected.date}</p>
+                      </div>
+                      <button onClick={() => setSelected(null)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80 transition-colors hover:bg-white/20">
+                        <X size={18} />
+                      </button>
+                    </div>
+                    {/* Key stats inline */}
+                    <div className="relative mt-5 grid grid-cols-3 gap-3">
+                      {[
+                        { label: 'Accuracy', value: `${selected.accuracy.toFixed(1)}%` },
+                        { label: 'F1 Score', value: selected.f1.toFixed(3) },
+                        { label: 'Models',   value: selected.models },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-xl bg-white/10 px-3 py-2.5">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-white/60">{label}</p>
+                          <p className="mt-0.5 text-lg font-black">{value}</p>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-neutral-500 dark:text-neutral-400 font-medium">No parameters recorded.</p>
-                    )}
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Body */}
+              <div className="flex-1 space-y-4 p-6">
+
+                {/* Dataset & Runtime */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { label: 'Dataset', value: selected.dataset ?? 'N/A' },
+                    { label: 'Runtime', value: selected.runtime ?? 'Completed' },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-800/20">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{label}</p>
+                      <p className="mt-1.5 text-sm font-bold text-neutral-900 dark:text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Notes */}
+                {selected.notes && (
+                  <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-800/20">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Research Notes</p>
+                    <p className="text-xs leading-6 text-neutral-600 dark:text-neutral-400">{selected.notes}</p>
+                  </div>
+                )}
+
+                {/* Hyperparameters */}
+                {selected.params && (
+                  <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-800/20">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Hyperparameters</p>
+                      <button onClick={() => downloadCSV([selected], `experiment-${selected.id}`)}
+                        className="flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-bold text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                        <FileSpreadsheet size={12} /> Export
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {Object.entries(selected.params).map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-white px-3.5 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
+                          <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300">{k}</span>
+                          <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Models in this experiment */}
+                <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-800/20">
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+                    Models in this experiment ({comparison.filter(r => r.experiment === selected.id).length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {comparison
+                      .filter(r => r.experiment === selected.id)
+                      .map((r, i) => {
+                        const fm = FAMILY_META[r.family] ?? { label: r.family, color: 'bg-neutral-100 text-neutral-600', dot: 'bg-neutral-400' }
+                        return (
+                          <div key={r.model} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-white px-3.5 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500">#{i + 1}</span>
+                              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{r.model}</span>
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${fm.color}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${fm.dot}`} />{fm.label}
+                              </span>
+                            </div>
+                            <span className="font-mono text-xs font-black text-neutral-700 dark:text-neutral-300">{r.accuracy.toFixed(1)}%</span>
+                          </div>
+                        )
+                      })
+                    }
                   </div>
                 </div>
               </div>
@@ -760,8 +591,7 @@ const Experiments = () => {
           </>
         )}
       </AnimatePresence>
+
     </div>
   )
 }
-
-export default Experiments

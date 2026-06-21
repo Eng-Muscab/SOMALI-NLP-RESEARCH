@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle, Brain, CheckCircle2, ChevronDown, Clock,
-  History, RotateCcw, Send, Sparkles, Zap,
+  History, Microscope, RotateCcw, Send, Sparkles, X, Zap,
 } from 'lucide-react'
 import api, { getApiErrorMessage } from '@services/api'
 import { predict } from '@services/predictService'
@@ -143,7 +143,11 @@ export default function Predict() {
   const [history, setHistory]         = useState<HistoryEntry[]>([])
   const [startMs, setStartMs]         = useState(0)
   const [elapsed, setElapsed]         = useState(0)
-  const resultRef = useRef<HTMLDivElement>(null)
+  const [limeOpen, setLimeOpen]       = useState(false)
+  const [limeUrl, setLimeUrl]         = useState<string | null>(null)
+  const [limeLoading, setLimeLoading] = useState(false)
+  const resultRef  = useRef<HTMLDivElement>(null)
+  const limeBlob   = useRef<string | null>(null)
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -207,6 +211,31 @@ export default function Predict() {
       const msg = getApiErrorMessage(e, 'Failed to make prediction.')
       setError(msg); showToast(msg, 'error')
     } finally { setLoading(false) }
+  }
+
+  const openLime = async () => {
+    const exp = selModel?.experiment
+    if (!exp) return
+    setLimeLoading(true)
+    setLimeOpen(true)
+    try {
+      const r = await api.get<string>(`/experiments/xai/lime/${exp}/0`)
+      if (limeBlob.current) URL.revokeObjectURL(limeBlob.current)
+      const blob = new Blob([r.data], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      limeBlob.current = url
+      setLimeUrl(url)
+    } catch {
+      setLimeOpen(false)
+    } finally {
+      setLimeLoading(false)
+    }
+  }
+
+  const closeLime = () => {
+    setLimeOpen(false)
+    setLimeUrl(null)
+    if (limeBlob.current) { URL.revokeObjectURL(limeBlob.current); limeBlob.current = null }
   }
 
   const isAI = result?.label === 'AI'
@@ -562,15 +591,27 @@ export default function Predict() {
                     <p className="text-sm font-bold" style={{ color: '#0F172A' }}>Token Influence Analysis</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-3" style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: '#FED7AA', border: '1.5px solid #F97316' }} />
-                    Human leaning
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: '#BFDBFE', border: '1.5px solid #3B82F6' }} />
-                    AI leaning
-                  </span>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex flex-wrap gap-3" style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: '#FED7AA', border: '1.5px solid #F97316' }} />
+                      Human leaning
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: '#BFDBFE', border: '1.5px solid #3B82F6' }} />
+                      AI leaning
+                    </span>
+                  </div>
+                  {selModel?.experiment && (
+                    <button
+                      onClick={openLime}
+                      disabled={limeLoading}
+                      className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/15"
+                    >
+                      <Microscope size={12} />
+                      {limeLoading ? 'Loading…' : 'LIME View'}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -672,6 +713,74 @@ export default function Predict() {
                 to see the classification output.
               </p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── LIME Modal ────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {limeOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={closeLime}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={e => e.stopPropagation()}
+              className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-neutral-900"
+              style={{ maxHeight: '90vh' }}
+            >
+              {/* Header */}
+              <div className="flex shrink-0 items-center justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+                    <Microscope size={15} className="text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+                      LIME Interpretability
+                    </p>
+                    <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">
+                      Local Explanation — Test Sample
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeLime}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                >
+                  <X size={16} className="text-neutral-500" />
+                </button>
+              </div>
+
+              {/* Notice */}
+              <div className="mx-6 mt-4 shrink-0 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-400">
+                Pre-computed explanation from the test set. For full SHAP + LIME analysis, visit the{' '}
+                <span className="underline underline-offset-2">Explainability</span> page.
+              </div>
+
+              {/* iframe */}
+              <div className="relative mx-6 mb-6 mt-4 min-h-0 flex-1 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700" style={{ height: '440px' }}>
+                {limeLoading || !limeUrl ? (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-neutral-200 border-t-indigo-500" />
+                  </div>
+                ) : (
+                  <iframe
+                    src={limeUrl}
+                    className="h-full w-full border-0"
+                    sandbox="allow-scripts"
+                    title="LIME Explanation"
+                  />
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

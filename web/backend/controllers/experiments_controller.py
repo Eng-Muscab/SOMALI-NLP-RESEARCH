@@ -75,6 +75,74 @@ async def get_lime_explanation(experiment: str, index: int = 0):
     return Response(content=html, media_type="text/html; charset=utf-8")
 
 
+@router.get("/xai/shap-plot/{experiment}")
+async def get_shap_plot(experiment: str):
+    path = (
+        settings.experiments_dir
+        / experiment
+        / "xai" / "outputs" / "shap"
+        / "shap_summary_plot.png"
+    )
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="SHAP summary plot not found")
+    return Response(content=path.read_bytes(), media_type="image/png")
+
+
+@router.get("/evaluation/confusion-matrix/{experiment}/{model_name}")
+async def get_confusion_matrix(experiment: str, model_name: str):
+    path = (
+        settings.experiments_dir
+        / experiment
+        / "evaluation" / "figures"
+        / f"confusion_matrix_{model_name}.png"
+    )
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Confusion matrix not found")
+    return Response(content=path.read_bytes(), media_type="image/png")
+
+
+@router.get("/xai/shap/{experiment}")
+async def get_shap_importance(experiment: str, limit: int = 25):
+    path = (
+        settings.experiments_dir
+        / experiment
+        / "xai" / "outputs" / "shap"
+        / "shap_global_importance.csv"
+    )
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"SHAP data not found for {experiment}")
+    rows = []
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            rows.append({
+                "feature": row.get("feature", "").strip(),
+                "importance": round(_as_float(row.get("mean_abs_shap")), 6),
+            })
+    rows.sort(key=lambda r: r["importance"], reverse=True)
+    return rows[:limit]
+
+
+@router.get("/xai/errors/{experiment}")
+async def get_error_analysis(experiment: str):
+    path = (
+        settings.experiments_dir
+        / experiment
+        / "xai" / "outputs"
+        / "error_analysis_sample.csv"
+    )
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Error analysis not found for {experiment}")
+    rows = []
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            rows.append({
+                "text": row.get("Text", ""),
+                "true_label": row.get("true_label", ""),
+                "predicted_label": row.get("predicted_label", ""),
+            })
+    return rows
+
+
 @router.get("")
 async def list_experiments():
     results = []

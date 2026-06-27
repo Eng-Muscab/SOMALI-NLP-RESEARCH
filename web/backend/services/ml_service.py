@@ -68,11 +68,7 @@ class MLService:
             patterns.extend(["*.keras", "model.safetensors", "pytorch_model.bin"])
         candidates: list[Path] = []
 
-        if settings.models_dir.exists():
-            for pattern in patterns:
-                candidates.extend(settings.models_dir.rglob(pattern))
-
-        if not candidates and settings.experiments_dir.exists():
+        if settings.experiments_dir.exists():
             for pattern in patterns:
                 candidates.extend(settings.experiments_dir.rglob(pattern))
 

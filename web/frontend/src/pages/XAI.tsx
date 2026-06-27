@@ -4,8 +4,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
-import { AlertTriangle, RefreshCw, X } from 'lucide-react'
+import { AlertTriangle, RefreshCw, X, GitCompare } from 'lucide-react'
 import api from '@services/api'
+
+interface TopWord { word: string; score: number }
 
 const EXPERIMENTS = [
   { id: 'experiment_1_stopwords_included', label: 'Experiment 1', sub: 'Stopwords Included' },
@@ -30,13 +32,27 @@ export default function XAI() {
   const [errors, setErrors]         = useState<ErrorRow[]>([])
   const [errLoading, setErrLoading] = useState(true)
   const [limeIdx, setLimeIdx]           = useState(0)
+  const [limeExp, setLimeExp]           = useState(EXPERIMENTS[0].id)
   const [limeUrl, setLimeUrl]           = useState<string | null>(null)
   const [limeLoading, setLimeLoading]   = useState(true)
+  const [limeHeight, setLimeHeight]     = useState(560)
+  const [limeData, setLimeData]         = useState<{ label: string; probabilities: Record<string, number>; features: { word: string; weight: number }[] } | null>(null)
   const [plotUrl, setPlotUrl]           = useState<string | null>(null)
   const [plotLoading, setPlotLoading]   = useState(true)
   const [showPlot, setShowPlot]         = useState(false)
   const prevBlob  = useRef<string | null>(null)
   const prevPlot  = useRef<string | null>(null)
+
+  const [topWords, setTopWords]         = useState<{ exp1: TopWord[]; exp2: TopWord[] } | null>(null)
+  const [topWordsLoading, setTopWordsLoading] = useState(true)
+
+  useEffect(() => {
+    setTopWordsLoading(true)
+    api.get<{ exp1: TopWord[]; exp2: TopWord[] }>('/experiments/dataset/top-words', { params: { limit: 15 } })
+      .then(r => setTopWords(r.data))
+      .catch(() => setTopWords(null))
+      .finally(() => setTopWordsLoading(false))
+  }, [])
 
   // SHAP data
   useEffect(() => {
@@ -84,24 +100,40 @@ export default function XAI() {
     }
   }, [exp])
 
-  // LIME
+  // LIME (uses its own limeExp state — independent of the SHAP/error exp selector)
   useEffect(() => {
     setLimeLoading(true)
     setLimeUrl(null)
-    api.get<string>(`/experiments/xai/lime/${exp}/${limeIdx}`)
-      .then(r => {
-        const blob = new Blob([r.data], { type: 'text/html' })
-        const url  = URL.createObjectURL(blob)
-        if (prevBlob.current) URL.revokeObjectURL(prevBlob.current)
-        prevBlob.current = url
-        setLimeUrl(url)
-      })
-      .catch(() => setLimeUrl(null))
+    setLimeData(null)
+    setLimeHeight(560)
+    // Fetch HTML + feature data in parallel
+    Promise.all([
+      api.get<string>(`/experiments/xai/lime/${limeExp}/${limeIdx}`),
+      api.get(`/experiments/xai/lime-data/${limeExp}/${limeIdx}`),
+    ]).then(([htmlRes, dataRes]) => {
+      const blob = new Blob([htmlRes.data], { type: 'text/html' })
+      const url  = URL.createObjectURL(blob)
+      if (prevBlob.current) URL.revokeObjectURL(prevBlob.current)
+      prevBlob.current = url
+      setLimeUrl(url)
+      setLimeData(dataRes.data as any)
+    }).catch(() => { setLimeUrl(null); setLimeData(null) })
       .finally(() => setLimeLoading(false))
     return () => {
       if (prevBlob.current) URL.revokeObjectURL(prevBlob.current)
     }
-  }, [exp, limeIdx])
+  }, [limeExp, limeIdx])
+
+  // Listen for LIME iframe height reports
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'limeHeight' && typeof e.data.value === 'number') {
+        setLimeHeight(h => Math.max(h, Math.min(e.data.value, 1600)))
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
 
   const maxImp = shapData[0]?.importance ?? 1
 
@@ -283,21 +315,106 @@ export default function XAI() {
         </div>
       )}
 
+      {/* ── Top Words Comparison ─────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white dark:border-white/[0.06] dark:bg-[#0D2137]">
+        <div className="border-b border-neutral-100 px-5 py-4 dark:border-white/[0.05]">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600">
+              <GitCompare size={15} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-neutral-900 dark:text-white">Top Words: Exp 1 vs Exp 2</h2>
+              <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-500">
+                Exp 1 — stopwords included · Exp 2 — Somali stopwords removed · scored by TF-IDF weight
+              </p>
+            </div>
+          </div>
+        </div>
+        {topWordsLoading ? (
+          <div className="flex h-48 items-center justify-center">
+            <RefreshCw size={20} className="animate-spin text-neutral-300 dark:text-neutral-700" />
+          </div>
+        ) : !topWords ? (
+          <div className="flex h-32 items-center justify-center text-sm text-neutral-400">No data available</div>
+        ) : (
+          <div className="grid gap-0 sm:grid-cols-2">
+            {/* Exp 1 */}
+            <div className="border-b border-neutral-100 p-5 sm:border-b-0 sm:border-r dark:border-white/[0.05]">
+              <p className="mb-4 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+                <span className="h-2 w-2 rounded-full bg-violet-500" /> Experiment 1 — Stopwords Included
+              </p>
+              <div className="space-y-2">
+                {topWords.exp1.slice(0, 12).map((w, i) => {
+                  const max = topWords.exp1[0]?.score ?? 1
+                  return (
+                    <div key={w.word}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="w-5 text-right font-mono text-[9px] text-neutral-400">#{i+1}</span>
+                          <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{w.word}</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-neutral-400">{w.score.toFixed(1)}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        <motion.div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-400"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(w.score / max) * 100}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.03 }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {/* Exp 2 */}
+            <div className="p-5">
+              <p className="mb-4 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-sky-600 dark:text-sky-400">
+                <span className="h-2 w-2 rounded-full bg-sky-500" /> Experiment 2 — Stopwords Removed
+              </p>
+              <div className="space-y-2">
+                {topWords.exp2.slice(0, 12).map((w, i) => {
+                  const max = topWords.exp2[0]?.score ?? 1
+                  return (
+                    <div key={w.word}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="w-5 text-right font-mono text-[9px] text-neutral-400">#{i+1}</span>
+                          <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{w.word}</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-neutral-400">{w.score.toFixed(1)}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        <motion.div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(w.score / max) * 100}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.03 }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── LIME Section ─────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white dark:border-white/[0.06] dark:bg-[#0D2137]">
+
+        {/* Header */}
         <div className="flex flex-col gap-3 border-b border-neutral-100 px-5 py-4 dark:border-white/[0.05] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-bold text-neutral-900 dark:text-white">LIME Explanations</h2>
             <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-500">
-              Word-level contributions for individual predictions — green = supports class, red = opposes
+              Word-level feature contributions · <span className="font-semibold text-emerald-600 dark:text-emerald-400">green = pushes toward AI</span> · <span className="font-semibold text-orange-500">red = pushes toward Human</span>
             </p>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {[0, 1, 2].map(i => (
               <button key={i} onClick={() => setLimeIdx(i)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
                   limeIdx === i
-                    ? 'bg-sky-500 text-white'
+                    ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
                     : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/8'
                 }`}>
                 Sample {i + 1}
@@ -305,16 +422,88 @@ export default function XAI() {
             ))}
           </div>
         </div>
+
+        {/* Experiment selector — independent of page-level exp */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 bg-neutral-50/60 px-5 py-2.5 dark:border-white/[0.04] dark:bg-white/[0.02]">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Switch Experiment:</span>
+          {EXPERIMENTS.map(e => (
+            <button
+              key={e.id}
+              onClick={() => setLimeExp(e.id)}
+              className={`rounded-full px-3 py-0.5 text-[11px] font-bold transition-colors ${
+                limeExp === e.id
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200 dark:bg-white/5 dark:text-neutral-400'
+              }`}
+            >
+              {e.label} · {e.sub}
+            </button>
+          ))}
+        </div>
+
+        {/* Feature data panel — shows clearly different content per experiment */}
+        {limeData && (
+          <div className="grid grid-cols-1 gap-4 border-b border-neutral-100 px-5 py-4 dark:border-white/[0.04] sm:grid-cols-2">
+            {/* Prediction */}
+            <div className="rounded-xl bg-neutral-50 p-4 dark:bg-white/[0.03]">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">Prediction</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`rounded-full px-3 py-1 text-sm font-black ${
+                  limeData.label === 'AI'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
+                    : 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300'
+                }`}>{limeData.label === 'AI' ? 'AI Generated' : 'Human Written'}</span>
+                <span className="text-xs text-neutral-400">{EXPERIMENTS.find(e => e.id === limeExp)?.sub}</span>
+              </div>
+              {Object.entries(limeData.probabilities).map(([cls, prob]) => (
+                <div key={cls} className="mb-1.5">
+                  <div className="mb-0.5 flex justify-between text-[11px]">
+                    <span className="font-semibold text-neutral-600 dark:text-neutral-300">{cls}</span>
+                    <span className="font-bold text-neutral-800 dark:text-neutral-100">{Math.round(prob * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-700">
+                    <div
+                      className={`h-full rounded-full ${cls === 'AI' ? 'bg-blue-500' : 'bg-orange-500'}`}
+                      style={{ width: `${Math.round(prob * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Top features */}
+            <div className="rounded-xl bg-neutral-50 p-4 dark:bg-white/[0.03]">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">Top Features · {EXPERIMENTS.find(e => e.id === limeExp)?.sub}</p>
+              <div className="space-y-1">
+                {limeData.features.slice(0, 8).map((f, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="w-20 truncate text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">{f.word}</span>
+                    <div className="flex-1 relative h-4 rounded bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                      <div
+                        className={`absolute inset-y-0 h-full rounded ${f.weight >= 0 ? 'bg-emerald-500 left-1/2' : 'bg-orange-500 right-1/2'}`}
+                        style={{ width: `${Math.min(Math.abs(f.weight) * 500, 50)}%` }}
+                      />
+                    </div>
+                    <span className={`w-12 text-right text-[10px] font-bold ${f.weight >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500'}`}>
+                      {f.weight >= 0 ? '+' : ''}{f.weight.toFixed(3)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="p-5">
           {limeLoading ? (
-            <div className="flex h-[520px] items-center justify-center">
+            <div className="flex items-center justify-center" style={{ height: limeHeight }}>
               <RefreshCw size={20} className="animate-spin text-neutral-300 dark:text-neutral-700" />
             </div>
           ) : limeUrl ? (
             <iframe
               src={limeUrl}
-              title={`LIME sample ${limeIdx + 1}`}
-              className="h-[520px] w-full rounded-xl border border-neutral-100 dark:border-white/[0.05]"
+              title={`LIME ${EXPERIMENTS.find(e2 => e2.id === limeExp)?.label ?? ''} sample ${limeIdx + 1}`}
+              className="w-full rounded-xl border border-neutral-100 dark:border-white/[0.05]"
+              style={{ height: limeHeight, minHeight: 460 }}
               sandbox="allow-scripts"
             />
           ) : (

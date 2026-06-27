@@ -22,3 +22,5 @@ class PredictResponse(BaseModel):
     probabilities: dict[str, float]
     model: str
     history_saved: bool = True
+    category: Optional[str] = None
+    category_icon: Optional[str] = None

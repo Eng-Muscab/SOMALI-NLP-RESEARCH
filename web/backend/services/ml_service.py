@@ -1,5 +1,6 @@
 import logging
 import math
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,20 @@ import numpy as np
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+# Ensure project root is importable (for experiments.run_full_12_steps)
+_project_root = str(Path(__file__).resolve().parent.parent.parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+# Import TransformerBlock at module level so the @register_keras_serializable
+# decorator runs and registers the class before any .keras model is loaded.
+try:
+    from experiments.transformer_block import TransformerBlock as _TransformerBlock  # noqa: F401
+    logger.info("TransformerBlock registered for Keras serialization.")
+except Exception as _e:
+    logger.warning("Could not pre-register TransformerBlock: %s", _e)
+    _TransformerBlock = None
 
 
 class ModelNotFoundError(KeyError):
@@ -82,18 +97,7 @@ class MLService:
                 self.model_paths[key] = str(path)
             elif path.suffix == ".keras":
                 import tensorflow as tf
-                custom_objects = {}
-                try:
-                    from experiments.run_full_12_steps import TransformerBlock
-
-                    custom_objects["TransformerBlock"] = TransformerBlock
-                except Exception:
-                    pass
-                model = tf.keras.models.load_model(
-                    path,
-                    compile=False,
-                    custom_objects=custom_objects or None,
-                )
+                model = tf.keras.models.load_model(path, compile=False)
                 self.models[key] = {"type": "keras", "model": model}
                 self.model_paths[key] = str(path)
             elif path.name in ["model.safetensors", "pytorch_model.bin"]:

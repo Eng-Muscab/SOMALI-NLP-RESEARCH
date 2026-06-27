@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertCircle, Brain, CheckCircle2, ChevronDown, Clock,
-  History, Microscope, RotateCcw, Send, Sparkles, X, Zap,
+  AlertCircle, Brain, CheckCircle2, ChevronDown, ChevronUp, Clock,
+  FileText, History, Microscope, RotateCcw, Send, Sparkles, X, Zap,
 } from 'lucide-react'
 import api, { getApiErrorMessage } from '@services/api'
 import { predict } from '@services/predictService'
@@ -17,12 +17,13 @@ type HighlightTone = 'ai' | 'human'
 interface ModelData {
   id: string; name: string; type: string
   experiment?: string; experimentName?: string
-  accuracy: number; f1: number; status: string
+  accuracy: number; f1: number; precision: number; recall: number; status: string
 }
 
 interface HistoryEntry {
   id: string; text: string; label: string
   confidence: number; model: string; ts: number; ms: number
+  category?: string; category_icon?: string
 }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -146,18 +147,48 @@ export default function Predict() {
   const [limeOpen, setLimeOpen]       = useState(false)
   const [limeUrl, setLimeUrl]         = useState<string | null>(null)
   const [limeLoading, setLimeLoading] = useState(false)
+  const [limeIframeH, setLimeIframeH] = useState(600)
+  const [samples, setSamples]         = useState<{ label: string; type: string; text: string }[]>([])
+  const [samplesOpen, setSamplesOpen] = useState(false)
   const resultRef  = useRef<HTMLDivElement>(null)
   const limeBlob   = useRef<string | null>(null)
   const { showToast } = useToast()
 
+  // Listen for LIME iframe height
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'limeHeight' && typeof e.data.value === 'number') {
+        setLimeIframeH(h => Math.max(h, Math.min(e.data.value, 1600)))
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
   useEffect(() => {
     api.get<ModelData[]>('/models').then(res => {
       // Only show models with accuracy >= 80%
-      const all = (Array.isArray(res.data) ? res.data : []).filter(m => m.accuracy >= 80 && m.status === 'active')
+      const raw = (Array.isArray(res.data) ? res.data : []) as ModelData[]
+      // Show all models ≥80% accuracy; unavailable ones show performance-only panel
+      const all = raw.filter(m => m.accuracy >= 80)
       setModels(all)
       const firstActive = all.find(m => m.status === 'active') ?? all[0]
       if (firstActive) { setSelectedCat('All Experiments'); setSelectedModel(firstActive.id) }
     }).catch(e => setError(getApiErrorMessage(e))).finally(() => setModelsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    // Load sample texts for quick testing
+    Promise.all([
+      api.get('/experiments/dataset/samples?tool=Claude&limit=3'),
+      api.get('/experiments/dataset/samples?tool=ChatGPT&limit=2'),
+    ]).then(([claudeRes, chatRes]) => {
+      const aiSamples = [
+        ...(claudeRes.data as any[]).map(s => ({ label: 'AI – Claude', type: 'ai', text: s.text })),
+        ...(chatRes.data as any[]).map(s => ({ label: 'AI – ChatGPT', type: 'ai', text: s.text })),
+      ]
+      setSamples(aiSamples)
+    }).catch(() => {})
   }, [])
 
   const categories = useMemo(() => {
@@ -205,6 +236,8 @@ export default function Predict() {
         model: selModel?.name ?? res.data.model ?? '',
         ts: t0,
         ms,
+        category: res.data.category,
+        category_icon: res.data.category_icon,
       }, ...prev].slice(0, 5))
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (e) {
@@ -218,6 +251,7 @@ export default function Predict() {
     if (!exp) return
     setLimeLoading(true)
     setLimeOpen(true)
+    setLimeIframeH(600)
     try {
       const r = await api.get<string>(`/experiments/xai/lime/${exp}/0`)
       if (limeBlob.current) URL.revokeObjectURL(limeBlob.current)
@@ -288,7 +322,7 @@ export default function Predict() {
                 ? 'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-400'
                 : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
             }`}>
-              {selAvailable ? `${fmtMet(selModel.accuracy, '%')} Accuracy` : 'Model file not loaded'}
+              {selAvailable ? `${fmtMet(selModel.accuracy, '%')} Accuracy` : `${fmtMet(selModel.accuracy, '%')} · Performance Only`}
             </span>
           )}
         </div>
@@ -361,7 +395,91 @@ export default function Predict() {
         )}
       </motion.div>
 
-      {/* ── Text Input ────────────────────────────────────────────────────── */}
+      {/* ── Performance-Only Panel (deep learning / unavailable models) ───── */}
+      {selModel && !selAvailable && (
+        <motion.div
+          key={selModel.id + '-perf'}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-sm dark:border-amber-700/40 dark:bg-neutral-900"
+        >
+          <div className="flex items-center gap-3 border-b border-amber-100 bg-amber-50/60 px-6 py-4 dark:border-amber-700/30 dark:bg-amber-900/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-500/15">
+              <Brain size={15} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">Performance Metrics</p>
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Test-set evaluation — live inference not available for this model</p>
+            </div>
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+              Performance Only
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
+            {[
+              { l: 'Accuracy',  v: fmtMet(selModel.accuracy, '%'),  color: 'text-blue-600 dark:text-blue-400' },
+              { l: 'F1 Score',  v: fmtMet(selModel.f1),             color: 'text-violet-600 dark:text-violet-400' },
+              { l: 'Precision', v: fmtMet(selModel.precision),      color: 'text-emerald-600 dark:text-emerald-400' },
+              { l: 'Recall',    v: fmtMet(selModel.recall),         color: 'text-orange-600 dark:text-orange-400' },
+            ].map(({ l, v, color }) => (
+              <div key={l} className="rounded-xl bg-neutral-50 p-4 text-center dark:bg-neutral-800/40">
+                <p className={`text-2xl font-black ${color}`}>{v}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{l}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mx-6 mb-5 rounded-xl border border-neutral-100 bg-neutral-50/60 px-4 py-3 text-[11px] text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/30 dark:text-neutral-400">
+            Model weights for deep learning and transformer models are not deployed in this environment. The metrics above are from held-out test set evaluation during training.
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Quick Test Samples ───────────────────────────────────────────── */}
+      {samples.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.07 }}
+          className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900"
+        >
+          <button
+            onClick={() => setSamplesOpen(v => !v)}
+            className="flex w-full items-center gap-3 px-6 py-3.5 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/40"
+          >
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+              <FileText size={13} className="text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <span className="flex-1 text-left text-sm font-bold text-neutral-800 dark:text-neutral-100">Quick Test Samples</span>
+            <span className="text-[11px] text-neutral-400">{samples.length} AI samples · click to load</span>
+            {samplesOpen ? <ChevronUp size={14} className="text-neutral-400" /> : <ChevronDown size={14} className="text-neutral-400" />}
+          </button>
+          {samplesOpen && (
+            <div className="divide-y divide-neutral-50 px-4 pb-4 dark:divide-neutral-800/50">
+              {samples.map((s, i) => (
+                <div key={i} className="py-2.5">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
+                      s.type === 'ai'
+                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
+                        : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                    }`}>{s.label}</span>
+                  </div>
+                  <p className="mb-2 line-clamp-2 text-[12px] leading-5 text-neutral-500 dark:text-neutral-400">{s.text.slice(0, 160)}…</p>
+                  <button
+                    onClick={() => { setText(s.text); setResult(null); setSamplesOpen(false) }}
+                    className="rounded-lg bg-neutral-100 px-3 py-1 text-[11px] font-bold text-neutral-600 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400"
+                  >
+                    Use this text →
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ── Text Input ───────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -408,13 +526,21 @@ export default function Predict() {
           <button
             onClick={onSubmit}
             disabled={!text.trim() || !selectedModel || loading || modelsLoading || !selAvailable}
-            title={!selAvailable ? 'This model file is not loaded on the server' : undefined}
-            className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary-500/25 transition-all duration-200 hover:bg-primary-700 hover:-translate-y-0.5 hover:shadow-primary-500/35 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none active:translate-y-0"
+            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none active:translate-y-0 ${
+              selAvailable
+                ? 'bg-primary-600 shadow-primary-500/25 hover:bg-primary-700 hover:shadow-primary-500/35'
+                : 'bg-amber-500 shadow-amber-500/25 hover:bg-amber-600'
+            }`}
           >
             {loading ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 Analyzing…
+              </>
+            ) : !selAvailable ? (
+              <>
+                <Brain size={15} />
+                Weights Not Deployed
               </>
             ) : (
               <>
@@ -487,6 +613,15 @@ export default function Predict() {
                         ? 'This text was likely produced by an AI language model.'
                         : 'This text appears to be authored by a human writer.'}
                     </p>
+                    {result.category && result.category !== 'Unknown' && (
+                      <div className="mt-3">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 text-sm font-bold text-white backdrop-blur-sm">
+                          <span className="text-base leading-none">{result.category_icon}</span>
+                          <span>{result.category}</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Topic</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Gauge */}
@@ -506,6 +641,11 @@ export default function Predict() {
                       {icon} {label}
                     </span>
                   ))}
+                  {result.category && result.category !== 'Unknown' && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+                      <span>{result.category_icon}</span> {result.category}
+                    </span>
+                  )}
                   <span className="ml-auto text-[11px] font-semibold text-white/50">
                     {fmtTime(startMs)}
                   </span>
@@ -681,7 +821,14 @@ export default function Predict() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold text-neutral-700 dark:text-neutral-300">{h.text}…</p>
-                    <p className="mt-0.5 text-[11px] text-neutral-400">{h.model} · {fmtTime(h.ts)}</p>
+                    <p className="mt-0.5 text-[11px] text-neutral-400">
+                      {h.model} · {fmtTime(h.ts)}
+                      {h.category && h.category !== 'Unknown' && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+                          {h.category_icon} {h.category}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <span className="shrink-0 font-mono text-sm font-bold text-neutral-600 dark:text-neutral-400">
                     {Math.round(h.confidence * 100)}%
@@ -724,61 +871,75 @@ export default function Predict() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
             onClick={closeLime}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 300 }}
               onClick={e => e.stopPropagation()}
-              className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-neutral-900"
-              style={{ maxHeight: '90vh' }}
+              className="flex w-full flex-col overflow-hidden bg-white shadow-2xl dark:bg-[#0F172A] sm:max-w-4xl sm:rounded-2xl"
+              style={{ height: '92vh', maxHeight: '92vh' }}
             >
-              {/* Header */}
-              <div className="flex shrink-0 items-center justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
-                    <Microscope size={15} className="text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
-                      LIME Interpretability
-                    </p>
-                    <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">
-                      Local Explanation — Test Sample
-                    </p>
-                  </div>
+              {/* Header bar */}
+              <div className="flex shrink-0 items-center gap-3 border-b border-neutral-100 bg-white px-6 py-4 dark:border-white/[0.07] dark:bg-[#0F172A]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
+                  <Microscope size={16} className="text-white" />
                 </div>
-                <button
-                  onClick={closeLime}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                >
-                  <X size={16} className="text-neutral-500" />
-                </button>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">LIME Interpretability</p>
+                  <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">Local Feature Explanation</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="hidden rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 sm:inline">
+                    Pre-computed · Test Set Sample
+                  </span>
+                  <button
+                    onClick={closeLime}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors hover:bg-neutral-100 dark:hover:bg-white/[0.06]"
+                  >
+                    <X size={16} className="text-neutral-400" />
+                  </button>
+                </div>
               </div>
 
-              {/* Notice */}
-              <div className="mx-6 mt-4 shrink-0 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-2.5 text-[11px] font-semibold text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-400">
-                Pre-computed explanation from the test set. For full SHAP + LIME analysis, visit the{' '}
-                <span className="underline underline-offset-2">Explainability</span> page.
+              {/* Info strip */}
+              <div className="shrink-0 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-2.5 dark:from-indigo-900/20 dark:to-purple-900/20">
+                <p className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                  Green bars = words pushing toward <strong>AI</strong> · Red bars = words pushing toward <strong>Human</strong> · Bar length = feature weight
+                </p>
               </div>
 
-              {/* iframe */}
-              <div className="relative mx-6 mb-6 mt-4 min-h-0 flex-1 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700" style={{ height: '440px' }}>
+              {/* iframe — scrollable content area */}
+              <div className="min-h-0 flex-1 overflow-auto bg-white">
                 {limeLoading || !limeUrl ? (
-                  <div className="flex h-full items-center justify-center">
-                    <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-neutral-200 border-t-indigo-500" />
+                  <div className="flex flex-col items-center justify-center gap-4 py-24">
+                    <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-neutral-200 border-t-indigo-500" />
+                    <p className="text-[12px] font-semibold text-neutral-400">Loading LIME explanation…</p>
                   </div>
                 ) : (
                   <iframe
                     src={limeUrl}
-                    className="h-full w-full border-0"
+                    style={{ width: '100%', height: limeIframeH, display: 'block', border: 'none' }}
                     sandbox="allow-scripts"
                     title="LIME Explanation"
                   />
                 )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex shrink-0 items-center justify-between border-t border-neutral-100 bg-neutral-50/80 px-6 py-3 dark:border-white/[0.05] dark:bg-[#0F172A]">
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                  For full SHAP + LIME analysis across all test samples, visit the <span className="font-semibold text-indigo-500">Explainability</span> page.
+                </p>
+                <button
+                  onClick={closeLime}
+                  className="rounded-xl bg-neutral-200 px-4 py-1.5 text-[12px] font-bold text-neutral-700 transition-colors hover:bg-neutral-300 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                >
+                  Close
+                </button>
               </div>
             </motion.div>
           </motion.div>

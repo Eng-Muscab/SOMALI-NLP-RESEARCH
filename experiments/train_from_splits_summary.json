@@ -1,0 +1,15 @@
+{
+  "experiments": {
+    "experiment_2_stopwords_removed": {
+      "status": "ok",
+      "models": [
+        "LogisticRegression_TFIDF",
+        "LinearSVC_TFIDF",
+        "RandomForest_TFIDF",
+        "XGBoost_TFIDF"
+      ],
+      "rows": 4
+    }
+  },
+  "trained_models": 4
+}

@@ -15,6 +15,7 @@ from ..services.ml_service import (
     NoModelsLoadedError,
     ml_service,
 )
+from ..services.category_service import category_service
 from ..utils.dependencies import get_current_user
 
 router = APIRouter(tags=["predict"])
@@ -104,6 +105,8 @@ async def predict(
     except InferenceError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
+    cat_result = category_service.predict(req.text)
+
     prediction = PredictionDocument(
         text=req.text,
         prediction=out["prediction"],
@@ -143,4 +146,6 @@ async def predict(
         "probabilities": out.get("probabilities", {}),
         "model": out["model"],
         "history_saved": history_saved,
+        "category": cat_result["category"],
+        "category_icon": cat_result["icon"],
     }

@@ -16,6 +16,8 @@ export interface PredictResponse {
   model?: string
   text?: string
   historySaved?: boolean
+  category?: string
+  category_icon?: string
 }
 
 export interface PredictionHistoryItem {

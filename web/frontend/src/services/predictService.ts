@@ -7,6 +7,8 @@ interface ApiPredictResponse {
   probabilities?: Record<string, number>
   model?: string
   history_saved?: boolean
+  category?: string
+  category_icon?: string
 }
 
 export const predict = async (payload: PredictPayload) => {
@@ -19,6 +21,8 @@ export const predict = async (payload: PredictPayload) => {
     model: response.data.model,
     text: payload.text,
     historySaved: response.data.history_saved,
+    category: response.data.category,
+    category_icon: response.data.category_icon,
   }
 
   return {

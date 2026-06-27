@@ -462,13 +462,15 @@ def metric_row(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
 def save_confusion_matrix(path: Path, y_true: np.ndarray, y_pred: np.ndarray, labels: list[str], title: str) -> None:
     cm = confusion_matrix(y_true, y_pred)
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        path.unlink()
     plt.figure(figsize=(5, 4))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels)
     plt.title(title)
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
-    plt.savefig(path, dpi=180)
+    plt.savefig(str(path), dpi=180)
     plt.close()
 
 

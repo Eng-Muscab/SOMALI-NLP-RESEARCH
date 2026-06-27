@@ -7,13 +7,13 @@
     "test_rows": 879,
     "final_train_rows": 5869,
     "saved_model_train_scope": "full_dataset",
-    "accuracy": 0.9431171786120592,
+    "accuracy": 0.9431171786120591,
     "precision": 0.9442773464274375,
-    "recall": 0.9431171786120592,
-    "f1": 0.9431058402154748,
-    "macro_f1": 0.9431135709404188
+    "recall": 0.9431171786120591,
+    "f1": 0.9431058402154749,
+    "macro_f1": 0.9431135709404187
   },
-  "model_count": 14,
+  "model_count": 7,
   "models": [
     "LinearSVC_TFIDF",
     "MiniTransformer_Keras",
@@ -21,13 +21,6 @@
     "BiLSTM_Keras",
     "RandomForest_TFIDF",
     "XGBoost_TFIDF",
-    "AfriBERTa_FineTuned",
-    "BiLSTM_Word2Vec",
-    "BiLSTM_FastText",
-    "SomBERTa_FineTuned",
-    "AfroXLMR_FineTuned",
-    "XLMRoberta_FineTuned",
-    "BiLSTM_MultilingualEmbeddings",
-    "mBERT_FineTuned"
+    "XLMRoberta_FineTuned"
   ]
 }

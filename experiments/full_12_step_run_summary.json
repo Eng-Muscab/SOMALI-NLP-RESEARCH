@@ -49,11 +49,11 @@
       "test_rows": 879,
       "final_train_rows": 5869,
       "saved_model_train_scope": "full_dataset",
-      "accuracy": 0.9328782707622298,
-      "precision": 0.9343463981718686,
-      "recall": 0.9328782707622298,
-      "f1": 0.9328565496725926,
-      "macro_f1": 0.9328695823263748
+      "accuracy": 0.9340159271899886,
+      "precision": 0.9353735560065414,
+      "recall": 0.9340159271899886,
+      "f1": 0.9339974787073764,
+      "macro_f1": 0.934009009009009
     },
     {
       "experiment": "experiment_1_stopwords_included",
@@ -134,15 +134,29 @@
       "final_train_rows": 5869,
       "saved_model_train_scope": "full_dataset",
       "accuracy": 0.9044368600682594,
-      "precision": 0.9133985993401726,
+      "precision": 0.9139712217497548,
       "recall": 0.9044368600682594,
-      "f1": 0.9040477787340961,
-      "macro_f1": 0.9041389696717905
+      "f1": 0.9040191343280248,
+      "macro_f1": 0.9041140719962599
     },
     {
       "experiment": "experiment_2_stopwords_removed",
       "family": "traditional_ml",
       "model": "XGBoost_TFIDF",
+      "evaluation_train_rows": 4990,
+      "test_rows": 879,
+      "final_train_rows": 5869,
+      "saved_model_train_scope": "full_dataset",
+      "accuracy": 0.9032992036405005,
+      "precision": 0.9149586791644433,
+      "recall": 0.9032992036405005,
+      "f1": 0.9027669751041136,
+      "macro_f1": 0.9028763371321383
+    },
+    {
+      "experiment": "experiment_2_stopwords_removed",
+      "family": "traditional_ml",
+      "model": "RandomForest_TFIDF",
       "evaluation_train_rows": 4990,
       "test_rows": 879,
       "final_train_rows": 5869,
@@ -154,20 +168,6 @@
       "macro_f1": 0.9018310737104566
     },
     {
-      "experiment": "experiment_2_stopwords_removed",
-      "family": "traditional_ml",
-      "model": "RandomForest_TFIDF",
-      "evaluation_train_rows": 4990,
-      "test_rows": 879,
-      "final_train_rows": 5869,
-      "saved_model_train_scope": "full_dataset",
-      "accuracy": 0.9010238907849829,
-      "precision": 0.9096435774123487,
-      "recall": 0.9010238907849829,
-      "f1": 0.9006353546582407,
-      "macro_f1": 0.900727863259846
-    },
-    {
       "experiment": "experiment_1_stopwords_included",
       "family": "traditional_ml",
       "model": "XGBoost_TFIDF",
@@ -175,11 +175,11 @@
       "test_rows": 879,
       "final_train_rows": 5869,
       "saved_model_train_scope": "full_dataset",
-      "accuracy": 0.8976109215017065,
-      "precision": 0.9053706030353421,
-      "recall": 0.8976109215017065,
-      "f1": 0.8972521818545341,
-      "macro_f1": 0.8973418667663272
+      "accuracy": 0.8998862343572241,
+      "precision": 0.9071721416046524,
+      "recall": 0.8998862343572241,
+      "f1": 0.8995623029574261,
+      "macro_f1": 0.8996460783194429
     },
     {
       "experiment": "experiment_2_stopwords_removed",

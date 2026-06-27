@@ -6,5 +6,9 @@ experiment_2_stopwords_removed,traditional_ml,XGBoost_TFIDF,4990,879,5869,full_d
 experiment_2_stopwords_removed,traditional_ml,RandomForest_TFIDF,4990,879,5869,full_dataset,0.9021615472127418,0.9116496082958584,0.9021615472127418,0.9017338756215492,0.9018310737104566
 experiment_2_stopwords_removed,transformers,MiniTransformer_Keras,4990,879,5869,train_validation,0.8862343572241184,0.905883018511005,0.8862343572241184,0.8850795931809045,0.8852600250626567
 experiment_2_stopwords_removed,deep_learning,BiLSTM_Word2Vec,4990,879,5869,train_validation,0.882,0.8828,0.882,0.8817,0.8817
+experiment_2_stopwords_removed,transformers,AfriBERTa_FineTuned,4990,879,5869,train_validation,0.8703,0.8706,0.8703,0.8703,0.8702
+experiment_2_stopwords_removed,transformers,SomBERTa_FineTuned,4990,879,5869,train_validation,0.8623,0.8627,0.8623,0.8616,0.8615
 experiment_2_stopwords_removed,deep_learning,BiLSTM_FastText,4990,879,5869,train_validation,0.84,0.8408,0.84,0.8397,0.8397
+experiment_2_stopwords_removed,transformers,AfroXLMR_FineTuned,4990,879,5869,train_validation,0.8157,0.816,0.8157,0.8157,0.8156
 experiment_2_stopwords_removed,transformers,XLMRoberta_FineTuned,4990,879,4990,train_validation,0.7417519908987485,0.7689802518349136,0.7417519908987485,0.7360557621286833,0.7366794368115372
+experiment_2_stopwords_removed,transformers,mBERT_FineTuned,4990,879,5869,train_validation,0.595,0.596,0.595,0.5674,0.5673

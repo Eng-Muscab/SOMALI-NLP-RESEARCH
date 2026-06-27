@@ -12,8 +12,16 @@ experiment_2_stopwords_removed,traditional_ml,RandomForest_TFIDF,4990,879,5869,f
 experiment_1_stopwords_included,traditional_ml,XGBoost_TFIDF,4990,879,5869,full_dataset,0.8998862343572241,0.9071721416046524,0.8998862343572241,0.8995623029574261,0.8996460783194429
 experiment_2_stopwords_removed,transformers,MiniTransformer_Keras,4990,879,5869,train_validation,0.8862343572241184,0.905883018511005,0.8862343572241184,0.8850795931809045,0.8852600250626567
 experiment_2_stopwords_removed,deep_learning,BiLSTM_Word2Vec,4990,879,5869,train_validation,0.882,0.8828,0.882,0.8817,0.8817
+experiment_1_stopwords_included,transformers,AfriBERTa_FineTuned,4990,879,5869,train_validation,0.8783,0.8786,0.8783,0.878,0.8779
 experiment_1_stopwords_included,deep_learning,BiLSTM_Word2Vec,4990,879,5869,train_validation,0.8717,0.8725,0.8717,0.8714,0.8714
+experiment_2_stopwords_removed,transformers,AfriBERTa_FineTuned,4990,879,5869,train_validation,0.8703,0.8706,0.8703,0.8703,0.8702
+experiment_2_stopwords_removed,transformers,SomBERTa_FineTuned,4990,879,5869,train_validation,0.8623,0.8627,0.8623,0.8616,0.8615
 experiment_1_stopwords_included,deep_learning,BiLSTM_FastText,4990,879,5869,train_validation,0.8615,0.8621,0.8615,0.8613,0.8613
+experiment_1_stopwords_included,transformers,SomBERTa_FineTuned,4990,879,5869,train_validation,0.8567,0.8572,0.8567,0.8557,0.8556
 experiment_2_stopwords_removed,deep_learning,BiLSTM_FastText,4990,879,5869,train_validation,0.84,0.8408,0.84,0.8397,0.8397
+experiment_2_stopwords_removed,transformers,AfroXLMR_FineTuned,4990,879,5869,train_validation,0.8157,0.816,0.8157,0.8157,0.8156
+experiment_1_stopwords_included,transformers,AfroXLMR_FineTuned,4990,879,5869,train_validation,0.8066,0.807,0.8066,0.8061,0.806
 experiment_1_stopwords_included,transformers,XLMRoberta_FineTuned,4990,879,4990,train_validation,0.764505119453925,0.7651358216233555,0.764505119453925,0.7641996948649004,0.7640164401114856
 experiment_2_stopwords_removed,transformers,XLMRoberta_FineTuned,4990,879,4990,train_validation,0.7417519908987485,0.7689802518349136,0.7417519908987485,0.7360557621286833,0.7366794368115372
+experiment_1_stopwords_included,transformers,mBERT_FineTuned,4990,879,5869,train_validation,0.6769,0.6774,0.6769,0.6765,0.6764
+experiment_2_stopwords_removed,transformers,mBERT_FineTuned,4990,879,5869,train_validation,0.595,0.596,0.595,0.5674,0.5673

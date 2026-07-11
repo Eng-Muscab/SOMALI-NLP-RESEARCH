@@ -5,7 +5,7 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..config import REPO_ROOT, settings
@@ -91,8 +91,6 @@ async def get_model_comparison():
                     "recall": round(_as_float(row.get("recall")) * 100, 2),
                     "f1": round(_as_float(row.get("f1")), 4),
                     "macro_f1": round(_as_float(row.get("macro_f1")), 4),
-                    "test_rows": int(_as_float(str(row.get("test_rows", 0)))),
-                    "train_scope": row.get("saved_model_train_scope", ""),
                 })
     rows.sort(key=lambda r: r["accuracy"], reverse=True)
     return rows
@@ -172,6 +170,31 @@ svg text { font-family: Inter, -apple-system, sans-serif !important; }
 })();
 </script>
 """
+
+@router.get("/xai/lime-articles/{experiment}")
+async def get_lime_articles(experiment: str):
+    """Return the last 3 test articles used for LIME explanations."""
+    test_csv = settings.experiments_dir / experiment / "data" / "clean_test.csv"
+    if not test_csv.exists():
+        raise HTTPException(status_code=404, detail="Test data not found")
+    import csv as _csv
+    rows = []
+    with test_csv.open(encoding="utf-8-sig", newline="") as f:
+        for row in _csv.DictReader(f):
+            rows.append(row)
+    total = len(rows)
+    # Last 3 articles
+    last3 = rows[max(0, total - 3):]
+    return [
+        {
+            "index": out_idx,
+            "row_number": total - (2 - out_idx),
+            "label": r.get("Label", ""),
+            "snippet": r.get("Text", "")[:120].strip() + "…" if len(r.get("Text","")) > 120 else r.get("Text","").strip(),
+        }
+        for out_idx, r in enumerate(last3)
+    ]
+
 
 @router.get("/xai/lime-data/{experiment}/{index}")
 async def get_lime_data(experiment: str, index: int = 0):
@@ -540,3 +563,51 @@ async def get_wordcloud(limit: int = 80):
         ]
 
     return result
+
+
+@router.post("/xai/lime-realtime")
+async def lime_realtime_explain(request: Request):
+    """Run LIME on-the-fly for the given text and experiment. Returns HTML."""
+    body = await request.json()
+    text = body.get("text", "").strip()
+    experiment = body.get("experiment", "experiment_1_stopwords_included")
+
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+
+    from ..services.ml_service import ml_service
+    import numpy as np
+
+    # Find LinearSVC for this experiment
+    model_data = None
+    for key, data in ml_service.models.items():
+        if experiment in key and "linearsvc" in key:
+            model_data = data
+            break
+    if model_data is None:
+        raise HTTPException(status_code=404, detail="LinearSVC model not available for this experiment")
+
+    model = model_data["model"]
+
+    try:
+        from lime.lime_text import LimeTextExplainer
+
+        def predict_proba(texts):
+            clf = model.named_steps.get("clf")
+            if clf and hasattr(clf, "decision_function"):
+                scores = model.decision_function(texts)
+                arr = np.array(scores)
+                if arr.ndim == 1:
+                    p = 1.0 / (1.0 + np.exp(-arr))
+                    return np.column_stack([1 - p, p])
+                exp_s = np.exp(arr - arr.max(axis=1, keepdims=True))
+                return exp_s / exp_s.sum(axis=1, keepdims=True)
+            return model.predict_proba(texts)
+
+        explainer = LimeTextExplainer(class_names=["AI", "HUMAN"])
+        exp_obj = explainer.explain_instance(text, predict_proba, num_features=12, top_labels=1)
+        html = exp_obj.as_html()
+        html = html.replace("</html>", f"{_LIME_INJECT}</html>")
+        return Response(content=html, media_type="text/html; charset=utf-8")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"LIME failed: {exc}")

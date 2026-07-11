@@ -1,15 +1,15 @@
 {
   "dataset": {
-    "raw_rows": 6000,
+    "raw_rows": 8628,
     "task": "label",
     "label_description": "binary labels: AI, HUMAN",
-    "invalid_or_empty_rows": 3,
-    "ambiguous_duplicate_rows_removed": 4,
-    "same_label_duplicate_rows_removed": 124,
-    "dataset_rows": 5869,
+    "invalid_or_empty_rows": 0,
+    "ambiguous_duplicate_rows_removed": 0,
+    "same_label_duplicate_rows_removed": 133,
+    "dataset_rows": 8495,
     "label_counts": {
-      "AI": 2985,
-      "HUMAN": 2884
+      "AI": 4296,
+      "HUMAN": 4199
     }
   },
   "experiment": {
@@ -17,36 +17,36 @@
     "config": "experiments\\experiment_2_stopwords_removed\\config.yaml",
     "splits": {
       "train": {
-        "rows": 4109,
+        "rows": 5946,
         "label_counts": {
-          "AI": 2090,
-          "HUMAN": 2019
+          "AI": 3007,
+          "HUMAN": 2939
         },
         "ai_type_counts": {
-          "AI": 2090,
-          "HUMAN": 2019
+          "AI": 3007,
+          "HUMAN": 2939
         }
       },
       "val": {
-        "rows": 881,
+        "rows": 1274,
         "label_counts": {
-          "AI": 448,
-          "HUMAN": 433
+          "AI": 644,
+          "HUMAN": 630
         },
         "ai_type_counts": {
-          "AI": 448,
-          "HUMAN": 433
+          "AI": 644,
+          "HUMAN": 630
         }
       },
       "test": {
-        "rows": 879,
+        "rows": 1275,
         "label_counts": {
-          "AI": 447,
-          "HUMAN": 432
+          "AI": 645,
+          "HUMAN": 630
         },
         "ai_type_counts": {
-          "AI": 447,
-          "HUMAN": 432
+          "AI": 645,
+          "HUMAN": 630
         }
       }
     }

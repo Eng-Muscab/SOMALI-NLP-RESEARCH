@@ -18,7 +18,7 @@ paths:
   transformer_checkpoints_dir: models/transformers/checkpoints
 
 data:
-  dataset_labeled: data/raw/labeled_text.xlsx
+  dataset_labeled: data/raw/labeled text.xlsx
   supplemental_raw: data/raw/full_dataset.csv
   text_column: Text
   label_column: Label

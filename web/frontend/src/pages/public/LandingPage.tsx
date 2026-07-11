@@ -24,16 +24,16 @@ const TEAM = [
 ]
 
 const TOP_MODELS = [
-  { model: 'LinearSVC_TFIDF',          exp: 'Exp 1', family: 'traditional_ml', accuracy: 94.31, f1: 0.9431 },
-  { model: 'LinearSVC_TFIDF',          exp: 'Exp 2', family: 'traditional_ml', accuracy: 93.29, f1: 0.9329 },
-  { model: 'MiniTransformer_Keras',     exp: 'Exp 1', family: 'transformers',   accuracy: 92.61, f1: 0.9261 },
-  { model: 'LogisticRegression_TFIDF',  exp: 'Exp 1', family: 'traditional_ml', accuracy: 92.26, f1: 0.9224 },
-  { model: 'XLMRoberta_FineTuned',      exp: 'Exp 1', family: 'transformers',   accuracy: 91.84, f1: 0.9183 },
-  { model: 'XGBoost_TFIDF',            exp: 'Exp 2', family: 'traditional_ml', accuracy: 91.22, f1: 0.9118 },
-  { model: 'AfriBERTa_FineTuned',      exp: 'Exp 1', family: 'transformers',   accuracy: 90.78, f1: 0.9075 },
-  { model: 'RandomForest_TFIDF',        exp: 'Exp 1', family: 'traditional_ml', accuracy: 88.43, f1: 0.8831 },
-  { model: 'BiLSTM_Word2Vec',           exp: 'Exp 1', family: 'deep_learning',  accuracy: 86.17, f1: 0.8602 },
-  { model: 'mBERT_FineTuned',           exp: 'Exp 2', family: 'transformers',   accuracy: 85.54, f1: 0.8541 },
+  { model: 'LinearSVC_TFIDF',          exp: 'Exp 1', family: 'traditional_ml', accuracy: 96.31, f1: 0.9631 },
+  { model: 'LinearSVC_TFIDF',          exp: 'Exp 2', family: 'traditional_ml', accuracy: 95.29, f1: 0.9529 },
+  { model: 'LogisticRegression_TFIDF',  exp: 'Exp 1', family: 'traditional_ml', accuracy: 95.06, f1: 0.9506 },
+  { model: 'LogisticRegression_TFIDF',  exp: 'Exp 2', family: 'traditional_ml', accuracy: 94.82, f1: 0.9482 },
+  { model: 'MiniTransformer_Keras',     exp: 'Exp 1', family: 'deep_learning',  accuracy: 94.43, f1: 0.9443 },
+  { model: 'XGBoost_TFIDF',            exp: 'Exp 1', family: 'traditional_ml', accuracy: 94.04, f1: 0.9404 },
+  { model: 'BiLSTM_Keras',             exp: 'Exp 2', family: 'deep_learning',  accuracy: 93.57, f1: 0.9357 },
+  { model: 'XGBoost_TFIDF',            exp: 'Exp 2', family: 'traditional_ml', accuracy: 93.49, f1: 0.9349 },
+  { model: 'MiniTransformer_Keras',     exp: 'Exp 2', family: 'deep_learning',  accuracy: 92.94, f1: 0.9294 },
+  { model: 'BiLSTM_Keras',             exp: 'Exp 1', family: 'deep_learning',  accuracy: 92.86, f1: 0.9286 },
 ]
 
 const CHART_DATA = TOP_MODELS.slice(0, 8).map(m => ({
@@ -42,10 +42,10 @@ const CHART_DATA = TOP_MODELS.slice(0, 8).map(m => ({
 })).reverse()
 
 const RADAR_DATA = [
-  { metric: 'Accuracy',   'Traditional ML': 94, Transformers: 92, 'Deep Learning': 86 },
-  { metric: 'F1 Score',   'Traditional ML': 94, Transformers: 91, 'Deep Learning': 86 },
-  { metric: 'Precision',  'Traditional ML': 94, Transformers: 91, 'Deep Learning': 86 },
-  { metric: 'Recall',     'Traditional ML': 94, Transformers: 92, 'Deep Learning': 86 },
+  { metric: 'Accuracy',   'Traditional ML': 96, Transformers: 92, 'Deep Learning': 94 },
+  { metric: 'F1 Score',   'Traditional ML': 96, Transformers: 91, 'Deep Learning': 94 },
+  { metric: 'Precision',  'Traditional ML': 96, Transformers: 91, 'Deep Learning': 93 },
+  { metric: 'Recall',     'Traditional ML': 96, Transformers: 92, 'Deep Learning': 93 },
   { metric: 'Speed',      'Traditional ML': 98, Transformers: 42, 'Deep Learning': 65 },
   { metric: 'Efficiency', 'Traditional ML': 97, Transformers: 38, 'Deep Learning': 60 },
 ]
@@ -55,9 +55,9 @@ const FAMILY_COLOR: Record<string, string> = {
 }
 
 const STATS = [
-  { value: '19',    label: 'Models Evaluated' },
+  { value: '27',    label: 'Models Evaluated' },
   { value: '2',     label: 'Ablation Experiments' },
-  { value: '94.3%', label: 'Peak Accuracy' },
+  { value: '96.3%', label: 'Peak Accuracy' },
   { value: '8',     label: 'News Categories' },
 ]
 
@@ -65,7 +65,7 @@ const PIPELINE = [
   { icon: Database,    label: 'Data Collection',    desc: 'Somali news corpus, 8 topic categories' },
   { icon: Layers,      label: 'Preprocessing',      desc: 'Tokenisation & stopword analysis' },
   { icon: Brain,       label: 'Feature Extraction', desc: 'TF-IDF, Word2Vec, FastText, BERT' },
-  { icon: FlaskConical,label: 'Model Training',     desc: '19 classifiers × 2 experiments' },
+  { icon: FlaskConical,label: 'Model Training',     desc: '27 classifiers × 2 experiments' },
   { icon: BarChart2,   label: 'Evaluation',         desc: 'Accuracy, F1, Precision, Recall' },
   { icon: Microscope,  label: 'Explainability',     desc: 'LIME token-level attribution' },
 ]
@@ -89,7 +89,7 @@ const TECHNOLOGIES = [
 ]
 
 const FINDINGS = [
-  { icon: Trophy,       lightColor: 'text-amber-500',   darkColor: 'text-amber-400',   lightBg: 'bg-amber-50',   darkBg: 'bg-amber-500/[0.14]',   lightBorder: 'border-amber-200',  darkBorder: 'border-amber-500/25',  title: 'Traditional ML Dominates', body: 'LinearSVC with TF-IDF achieves 94.31% accuracy — outperforming all deep learning and transformer models. Sparse linear models benefit from Somali\'s morphological regularity.' },
+  { icon: Trophy,       lightColor: 'text-amber-500',   darkColor: 'text-amber-400',   lightBg: 'bg-amber-50',   darkBg: 'bg-amber-500/[0.14]',   lightBorder: 'border-amber-200',  darkBorder: 'border-amber-500/25',  title: 'Traditional ML Dominates', body: 'LinearSVC with TF-IDF achieves 96.31% accuracy on 8,495 articles — outperforming all deep learning and transformer models. Sparse linear models benefit from Somali\'s morphological regularity.' },
   { icon: FlaskConical, lightColor: 'text-violet-600',  darkColor: 'text-violet-400',  lightBg: 'bg-violet-50',  darkBg: 'bg-violet-500/[0.14]',  lightBorder: 'border-violet-200', darkBorder: 'border-violet-500/25', title: 'Stopwords Matter',          body: 'Experiment 1 (stopwords included) consistently outperforms Experiment 2 by 1–2%. Somali function words carry significant topical signals not present in English.' },
   { icon: Cpu,          lightColor: 'text-sky-600',     darkColor: 'text-sky-400',     lightBg: 'bg-sky-50',     darkBg: 'bg-sky-500/[0.14]',     lightBorder: 'border-sky-200',    darkBorder: 'border-sky-500/25',    title: 'Transformers Generalise',   body: 'XLM-RoBERTa and AfriBERTa reach top-5 rankings without task-specific feature engineering, demonstrating strong cross-lingual transfer to Somali.' },
   { icon: Microscope,   lightColor: 'text-emerald-600', darkColor: 'text-emerald-400', lightBg: 'bg-emerald-50', darkBg: 'bg-emerald-500/[0.14]', lightBorder: 'border-emerald-200', darkBorder: 'border-emerald-500/25', title: 'LIME Exposes Token Bias',   body: 'LIME explanations reveal domain-specific named entities and Somali tokens that disproportionately drive predictions, exposing potential dataset bias.' },
@@ -315,7 +315,7 @@ export default function LandingPage() {
             <span className="text-base">🥇</span>
             <div className="text-left leading-none">
               <p className={`text-[10px] font-bold uppercase tracking-widest ${dk ? 'text-white/35' : 'text-slate-400'}`}>Best Model</p>
-              <p className={`mt-0.5 text-xs font-black ${dk ? 'text-white' : 'text-slate-800'}`}>LinearSVC · 94.31%</p>
+              <p className={`mt-0.5 text-xs font-black ${dk ? 'text-white' : 'text-slate-800'}`}>LinearSVC · 96.31%</p>
             </div>
           </div>
         </FloatingBadge>
@@ -327,7 +327,7 @@ export default function LandingPage() {
             </div>
             <div className="text-left leading-none">
               <p className={`text-[10px] font-bold uppercase tracking-widest ${dk ? 'text-white/35' : 'text-slate-400'}`}>Models Tested</p>
-              <p className={`mt-0.5 text-xs font-black ${dk ? 'text-white' : 'text-slate-800'}`}>19 Classifiers</p>
+              <p className={`mt-0.5 text-xs font-black ${dk ? 'text-white' : 'text-slate-800'}`}>27 Classifiers</p>
             </div>
           </div>
         </FloatingBadge>
@@ -390,7 +390,7 @@ export default function LandingPage() {
           <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38 }}
             className={`mx-auto mt-6 max-w-2xl text-[1.05rem] leading-[1.78] ${dk ? 'text-white/52' : 'text-slate-500'}`}>
             A systematic ablation study benchmarking{' '}
-            <span className={`font-semibold ${dk ? 'text-white/75' : 'text-slate-700'}`}>19 NLP classifiers</span>
+            <span className={`font-semibold ${dk ? 'text-white/75' : 'text-slate-700'}`}>27 NLP classifiers</span>
             {' '}— Traditional ML, Deep Learning, and Transformers —
             for Somali-language news classification under two controlled stopword conditions.
           </motion.p>
@@ -472,7 +472,7 @@ export default function LandingPage() {
             <h3 className={`mb-5 text-[10px] font-bold uppercase tracking-widest ${vmuted}`}>Research Objectives</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                'Benchmark 19 classifiers on Somali text classification across 8 news categories',
+                'Benchmark 27 classifiers on Somali text classification across 8 news categories',
                 'Investigate the impact of Somali stopword removal on model performance (ablation study)',
                 'Compare Traditional ML, Deep Learning, and Transformer approaches on a low-resource language',
                 'Apply LIME explainability to interpret and audit model decision boundaries',
@@ -560,11 +560,11 @@ export default function LandingPage() {
       <section className="mx-auto max-w-7xl px-6 py-24">
         <SectionHeader badge="Ablation Experiments" badgeClass={dk ? 'border-sky-500/25 bg-sky-500/[0.14] text-sky-400' : 'border-sky-300/60 bg-sky-50 text-sky-600'}
           icon={FlaskConical} title="Two Controlled Experiments"
-          subtitle="The only variable between experiments is stopword treatment — isolating its effect on all 19 classifiers simultaneously." />
+          subtitle="The only variable between experiments is stopword treatment — isolating its effect on all 27 classifiers simultaneously." />
         <div className="grid gap-6 sm:grid-cols-2">
           {[
-            { num: '01', label: 'Stopwords Included', grad: 'from-violet-600 via-purple-600 to-indigo-700', lightBadge: 'bg-violet-100 border-violet-300 text-violet-700', darkBadge: 'bg-violet-500/[0.18] border-violet-500/30 text-violet-300', acc: '94.31%', f1: '0.9431', insight: 'Retaining all tokens — including discourse markers and function words — preserves topical and structural signals unique to Somali morphology. This setting achieves peak performance across all 19 models.', bullets: ['Best accuracy: 94.31% (LinearSVC)', 'Stopwords carry topical cues in Somali', 'Deep learning benefits from full vocabulary'] },
-            { num: '02', label: 'Stopwords Removed',  grad: 'from-sky-600 via-cyan-600 to-teal-600',         lightBadge: 'bg-sky-100 border-sky-300 text-sky-700',       darkBadge: 'bg-sky-500/[0.18] border-sky-500/30 text-sky-300',       acc: '93.29%', f1: '0.9329', insight: 'Removing a custom Somali stopword list reduces vocabulary noise but also strips contextually relevant function words. Performance drops 1–2% across all families, confirming stopwords are informative in Somali.', bullets: ['Best accuracy: 93.29% (LinearSVC)', '~1–2% accuracy drop vs Experiment 1', 'Transformer gap widens without full vocab'] },
+            { num: '01', label: 'Stopwords Included', grad: 'from-violet-600 via-purple-600 to-indigo-700', lightBadge: 'bg-violet-100 border-violet-300 text-violet-700', darkBadge: 'bg-violet-500/[0.18] border-violet-500/30 text-violet-300', acc: '96.31%', f1: '0.9631', insight: 'Retaining all tokens — including discourse markers and function words — preserves topical and structural signals unique to Somali morphology. This setting achieves peak performance across all 27 models.', bullets: ['Best accuracy: 96.31% (LinearSVC)', 'Stopwords carry topical cues in Somali', 'Deep learning benefits from full vocabulary'] },
+            { num: '02', label: 'Stopwords Removed',  grad: 'from-sky-600 via-cyan-600 to-teal-600',         lightBadge: 'bg-sky-100 border-sky-300 text-sky-700',       darkBadge: 'bg-sky-500/[0.18] border-sky-500/30 text-sky-300',       acc: '95.29%', f1: '0.9529', insight: 'Removing a custom Somali stopword list reduces vocabulary noise but also strips contextually relevant function words. Performance drops 1–2% across all families, confirming stopwords are informative in Somali.', bullets: ['Best accuracy: 95.29% (LinearSVC)', '~1–2% accuracy drop vs Experiment 1', 'Transformer gap widens without full vocab'] },
           ].map((e, i) => (
             <Reveal key={e.num} delay={i * 0.1}>
               <div className={`overflow-hidden transition-all hover:shadow-lg ${card}`}>
@@ -581,7 +581,7 @@ export default function LandingPage() {
                   <h3 className="text-xl font-black text-slate-900 dark:text-white">{e.label}</h3>
                   <p className={`mt-3 text-sm leading-[1.75] ${muted}`}>{e.insight}</p>
                   <div className="mt-5 grid grid-cols-3 gap-3">
-                    {[{ l: 'Best Acc.', v: e.acc }, { l: 'Best F1', v: e.f1 }, { l: 'Models', v: '19' }].map(({ l, v }) => (
+                    {[{ l: 'Best Acc.', v: e.acc }, { l: 'Best F1', v: e.f1 }, { l: 'Models', v: '27' }].map(({ l, v }) => (
                       <div key={l} className={`rounded-xl p-3 text-center ${dk ? 'bg-white/[0.05]' : 'bg-slate-50'}`}>
                         <p className={`text-[9px] font-bold uppercase tracking-widest ${vmuted}`}>{l}</p>
                         <p className="mt-1 text-base font-black text-slate-900 dark:text-white">{v}</p>
@@ -754,7 +754,7 @@ export default function LandingPage() {
             <div className="space-y-5">
               <Reveal>
                 <div className="grid grid-cols-2 gap-4">
-                  {[{ label: 'Total Articles', value: '3 000+', icon: Database }, { label: 'Categories', value: '8 classes', icon: Layers }, { label: 'Language', value: 'Somali (so)', icon: Globe }, { label: 'Train / Test', value: '80 / 20 %', icon: GitBranch }].map(({ label, value, icon: Icon }) => (
+                  {[{ label: 'Total Articles', value: '4,314', icon: Database }, { label: 'Categories', value: '8 classes', icon: Layers }, { label: 'Language', value: 'Somali (so)', icon: Globe }, { label: 'Train / Val / Test', value: '70 / 15 / 15%', icon: GitBranch }].map(({ label, value, icon: Icon }) => (
                     <div key={label} className={`rounded-2xl p-4 ${card}`}>
                       <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${dk ? 'bg-teal-500/[0.18]' : 'bg-teal-100'}`}>
                         <Icon size={15} className="text-teal-600 dark:text-teal-400" />
@@ -809,7 +809,7 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <p className={`mt-5 text-[11px] ${vmuted}`}>Approximate distribution · balanced 80/20 train/test split</p>
+                <p className={`mt-5 text-[11px] ${vmuted}`}>Approximate distribution · stratified 70/15/15 train/val/test split</p>
               </div>
             </Reveal>
           </div>
@@ -911,7 +911,7 @@ export default function LandingPage() {
                 </div>
                 <h2 className="text-2xl font-black text-white sm:text-3xl lg:text-4xl">Try the Platform Live</h2>
                 <p className="mx-auto mt-4 max-w-lg text-sm leading-[1.8] text-white/70">
-                  Run real-time Somali text classification with any of the 19 models, explore the full experiment
+                  Run real-time Somali text classification with any of the 27 models, explore the full experiment
                   leaderboard, view LIME token explanations, and browse confusion matrices.
                 </p>
                 <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -927,7 +927,7 @@ export default function LandingPage() {
                     </button>
                   )}
                 </div>
-                <p className="mt-5 text-[11px] text-white/38">No setup required · Works in your browser · All 19 models available</p>
+                <p className="mt-5 text-[11px] text-white/38">No setup required · Works in your browser · All 27 models available</p>
               </div>
             </div>
           </Reveal>

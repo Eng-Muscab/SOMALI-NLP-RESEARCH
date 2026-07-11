@@ -144,21 +144,27 @@ export default function Predict() {
   const [history, setHistory]         = useState<HistoryEntry[]>([])
   const [startMs, setStartMs]         = useState(0)
   const [elapsed, setElapsed]         = useState(0)
-  const [limeOpen, setLimeOpen]       = useState(false)
-  const [limeUrl, setLimeUrl]         = useState<string | null>(null)
-  const [limeLoading, setLimeLoading] = useState(false)
-  const [limeIframeH, setLimeIframeH] = useState(600)
-  const [samples, setSamples]         = useState<{ label: string; type: string; text: string }[]>([])
-  const [samplesOpen, setSamplesOpen] = useState(false)
-  const resultRef  = useRef<HTMLDivElement>(null)
-  const limeBlob   = useRef<string | null>(null)
+  const [limeOpen, setLimeOpen]           = useState(false)
+  const [limeUrl, setLimeUrl]             = useState<string | null>(null)
+  const [limeLoading, setLimeLoading]     = useState(false)
+  const [limeIframeH, setLimeIframeH]     = useState(600)
+  const [limeInlineUrl, setLimeInlineUrl] = useState<string | null>(null)
+  const [limeInlineLoading, setLimeInlineLoading] = useState(false)
+  const [limeInlineH, setLimeInlineH]     = useState(560)
+  const [limeInlineError, setLimeInlineError] = useState<string | null>(null)
+  const [samples, setSamples]             = useState<{ label: string; type: string; text: string }[]>([])
+  const [samplesOpen, setSamplesOpen]     = useState(false)
+  const resultRef     = useRef<HTMLDivElement>(null)
+  const limeBlob      = useRef<string | null>(null)
+  const limeInlineBlob = useRef<string | null>(null)
   const { showToast } = useToast()
 
-  // Listen for LIME iframe height
+  // Listen for LIME iframe height (modal + inline)
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'limeHeight' && typeof e.data.value === 'number') {
         setLimeIframeH(h => Math.max(h, Math.min(e.data.value, 1600)))
+        setLimeInlineH(h => Math.max(h, Math.min(e.data.value, 1600)))
       }
     }
     window.addEventListener('message', handler)
@@ -217,7 +223,7 @@ export default function Predict() {
 
   const onSubmit = async () => {
     if (!text.trim() || !selectedModel) return
-    setLoading(true); setError(null); setResult(null)
+    setLoading(true); setError(null); setResult(null); setLimeInlineUrl(null); setLimeInlineError(null)
     const t0 = Date.now(); setStartMs(t0)
     try {
       const res = await predict({ text, model: selectedModel })
@@ -225,6 +231,9 @@ export default function Predict() {
       setElapsed(ms)
       setResult(res.data)
       showToast('Analysis complete.', 'success')
+      if (selModel?.experiment) {
+        fetchInlineLime(text.trim(), selModel.experiment)
+      }
       const conf = res.data.label === 'AI'
         ? (res.data.probabilities?.AI ?? Number(res.data.score ?? 0))
         : (res.data.probabilities?.HUMAN ?? Number(res.data.score ?? 0))
@@ -244,6 +253,29 @@ export default function Predict() {
       const msg = getApiErrorMessage(e, 'Failed to make prediction.')
       setError(msg); showToast(msg, 'error')
     } finally { setLoading(false) }
+  }
+
+  const fetchInlineLime = async (inputText: string, experiment: string) => {
+    setLimeInlineLoading(true)
+    setLimeInlineUrl(null)
+    setLimeInlineError(null)
+    setLimeInlineH(560)
+    try {
+      const r = await api.post('/experiments/xai/lime-realtime',
+        { text: inputText, experiment },
+        { responseType: 'blob' }
+      )
+      if (limeInlineBlob.current) URL.revokeObjectURL(limeInlineBlob.current)
+      const url = URL.createObjectURL(r.data as Blob)
+      limeInlineBlob.current = url
+      setLimeInlineUrl(url)
+    } catch (err: unknown) {
+      console.error('[LIME inline] failed:', err)
+      const msg = err instanceof Error ? err.message : 'LIME computation failed'
+      setLimeInlineError(msg)
+    } finally {
+      setLimeInlineLoading(false)
+    }
   }
 
   const openLime = async () => {
@@ -497,7 +529,7 @@ export default function Predict() {
 
         <textarea
           value={text}
-          onChange={e => setText(e.target.value.slice(0, MAX_CHARS))}
+          onChange={e => { setText(e.target.value.slice(0, MAX_CHARS)); setLimeInlineUrl(null); setLimeInlineError(null) }}
           placeholder="Ku qor ama halkan ku dheji qoraalka af-Soomaaliga ah…"
           className="textarea-premium w-full min-h-[200px] resize-y border-0 bg-transparent px-6 py-5 text-[15px] leading-8 text-neutral-900 placeholder-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder-neutral-600"
         />
@@ -783,6 +815,53 @@ export default function Predict() {
                 </p>
               </div>
             </div>
+
+            {/* ── Inline LIME Explainability ── */}
+            {(limeInlineLoading || limeInlineUrl || limeInlineError) && (
+              <div className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900">
+                <div className="flex items-center gap-3 border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+                    <Microscope size={15} className="text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Explainability</p>
+                    <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">LIME — Local Feature Explanation</p>
+                  </div>
+                  <span className="ml-auto text-[11px] text-neutral-400 dark:text-neutral-500">
+                    LinearSVC · {selModel?.experiment?.includes('1') ? 'Stopwords Included' : 'Stopwords Removed'}
+                  </span>
+                </div>
+                {!limeInlineError && (
+                  <div className="px-5 pt-3 pb-1">
+                    <p className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                      Green bars = words pushing toward <strong>AI</strong> · Red bars = words pushing toward <strong>Human</strong> · Bar length = feature weight
+                    </p>
+                  </div>
+                )}
+                <div className="p-5">
+                  {limeInlineLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-16">
+                      <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-neutral-200 border-t-indigo-500" />
+                      <p className="text-xs font-semibold text-neutral-400">Computing LIME explanation… (may take 10–20 s)</p>
+                    </div>
+                  ) : limeInlineError ? (
+                    <div className="flex flex-col items-center justify-center gap-2 py-10">
+                      <AlertCircle size={20} className="text-red-400" />
+                      <p className="text-xs font-semibold text-red-500">{limeInlineError}</p>
+                      <p className="text-[11px] text-neutral-400">Check browser console for details</p>
+                    </div>
+                  ) : limeInlineUrl ? (
+                    <iframe
+                      src={limeInlineUrl}
+                      title="LIME Explanation"
+                      className="w-full rounded-xl border border-neutral-100 dark:border-white/[0.05]"
+                      style={{ height: limeInlineH, minHeight: 460 }}
+                      sandbox="allow-scripts"
+                    />
+                  ) : null}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

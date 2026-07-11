@@ -16,6 +16,7 @@ const EXPERIMENTS = [
 
 interface ShapFeature { feature: string; importance: number }
 interface ErrorRow    { text: string; true_label: string; predicted_label: string }
+interface LimeArticle { index: number; row_number: number; label: string; snippet: string }
 
 const labelBadge = (label: string) => {
   const m: Record<string, string> = {
@@ -33,6 +34,7 @@ export default function XAI() {
   const [errLoading, setErrLoading] = useState(true)
   const [limeIdx, setLimeIdx]           = useState(0)
   const [limeExp, setLimeExp]           = useState(EXPERIMENTS[0].id)
+  const [limeArticles, setLimeArticles] = useState<LimeArticle[]>([])
   const [limeUrl, setLimeUrl]           = useState<string | null>(null)
   const [limeLoading, setLimeLoading]   = useState(true)
   const [limeHeight, setLimeHeight]     = useState(560)
@@ -99,6 +101,13 @@ export default function XAI() {
       if (prevPlot.current) { URL.revokeObjectURL(prevPlot.current); prevPlot.current = null }
     }
   }, [exp])
+
+  // LIME article metadata (last 3 test articles)
+  useEffect(() => {
+    api.get<LimeArticle[]>(`/experiments/xai/lime-articles/${limeExp}`)
+      .then(r => setLimeArticles(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setLimeArticles([]))
+  }, [limeExp])
 
   // LIME (uses its own limeExp state — independent of the SHAP/error exp selector)
   useEffect(() => {
@@ -410,16 +419,26 @@ export default function XAI() {
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {[0, 1, 2].map(i => (
-              <button key={i} onClick={() => setLimeIdx(i)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                  limeIdx === i
-                    ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/8'
-                }`}>
-                Sample {i + 1}
-              </button>
-            ))}
+            {[0, 1, 2].map(i => {
+              const art = limeArticles[i]
+              return (
+                <button key={i} onClick={() => setLimeIdx(i)}
+                  className={`flex flex-col items-start rounded-lg px-3 py-1.5 text-left text-xs font-bold transition-colors ${
+                    limeIdx === i
+                      ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/8'
+                  }`}>
+                  <span>Article {art ? art.row_number : `…`}</span>
+                  {art && (
+                    <span className={`text-[10px] font-normal ${
+                      limeIdx === i ? 'text-sky-100' : 'text-neutral-400 dark:text-neutral-500'
+                    }`}>
+                      {art.label === 'AI' ? 'AI Generated' : 'Human Written'}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -440,6 +459,18 @@ export default function XAI() {
             </button>
           ))}
         </div>
+
+        {/* Article snippet */}
+        {limeArticles[limeIdx] && (
+          <div className="border-b border-neutral-100 bg-neutral-50/60 px-5 py-2.5 dark:border-white/[0.04] dark:bg-white/[0.02]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-1">
+              Test Row #{limeArticles[limeIdx].row_number} · {limeArticles[limeIdx].label === 'AI' ? 'AI Generated' : 'Human Written'}
+            </p>
+            <p className="text-xs leading-relaxed text-neutral-600 dark:text-neutral-400 line-clamp-2">
+              {limeArticles[limeIdx].snippet}
+            </p>
+          </div>
+        )}
 
         {/* Feature data panel — shows clearly different content per experiment */}
         {limeData && (

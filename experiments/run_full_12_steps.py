@@ -18,7 +18,7 @@ import pandas as pd
 import seaborn as sns
 import tensorflow as tf
 import yaml
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve
 import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -31,6 +31,7 @@ from experiments.run_balanced_experiments import (
     generate_xai_outputs_strict,
     load_config,
     load_table,
+    normalize_category,
     resolve_path,
     stratified_split_by_source,
     train_traditional_models,
@@ -53,6 +54,21 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def save_hf_model_with_fallback(model, tokenizer, model_dir: Path) -> Path:
+    model_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        model.save_pretrained(model_dir, safe_serialization=False)
+        tokenizer.save_pretrained(model_dir)
+        return model_dir
+    except Exception as exc:
+        fallback_dir = model_dir.parent / f"{model_dir.name}_balanced_refresh"
+        fallback_dir.mkdir(parents=True, exist_ok=True)
+        print(f"== Save to {model_dir} failed ({exc}); saving to {fallback_dir} ==")
+        model.save_pretrained(fallback_dir, safe_serialization=False)
+        tokenizer.save_pretrained(fallback_dir)
+        return fallback_dir
+
+
 def generate_eda(exp_dir: Path) -> None:
     data_path = exp_dir / "data" / "train.csv"
     df = pd.read_csv(data_path, keep_default_na=False)
@@ -68,7 +84,7 @@ def generate_eda(exp_dir: Path) -> None:
     plt.xlabel("Label")
     plt.ylabel("Rows")
     plt.tight_layout()
-    plt.savefig(figures_dir / "class_distribution.png", dpi=180)
+    plt.savefig(figures_dir / "class_distribution.svg", dpi=180)
     plt.close()
 
     lengths = df["Text"].astype(str).str.split().map(len)
@@ -78,7 +94,7 @@ def generate_eda(exp_dir: Path) -> None:
     plt.xlabel("Word count")
     plt.ylabel("Rows")
     plt.tight_layout()
-    plt.savefig(figures_dir / "sentence_length_hist.png", dpi=180)
+    plt.savefig(figures_dir / "sentence_length_hist.svg", dpi=180)
     plt.close()
 
     token_counts: dict[str, int] = {}
@@ -98,7 +114,7 @@ def generate_eda(exp_dir: Path) -> None:
     plt.xlabel("Count")
     plt.ylabel("")
     plt.tight_layout()
-    plt.savefig(figures_dir / "top20_words.png", dpi=180)
+    plt.savefig(figures_dir / "top20_words.svg", dpi=180)
     plt.close()
 
     summary = {
@@ -108,6 +124,90 @@ def generate_eda(exp_dir: Path) -> None:
         "word_count_median": float(lengths.median()),
         "word_count_max": int(lengths.max()),
     }
+
+    cfg = load_config(ROOT / "config.yaml")
+    supplemental_value = cfg.get("data", {}).get("supplemental_raw") or cfg.get("paths", {}).get("data_raw")
+    supplemental_path = resolve_path(ROOT, supplemental_value) if supplemental_value else ROOT / "data" / "raw" / "full_dataset.xlsx"
+    if not supplemental_path.exists():
+        fallback = ROOT / "data" / "raw" / "full_dataset.csv"
+        supplemental_path = fallback if fallback.exists() else supplemental_path
+    if supplemental_path.exists():
+        raw_df = load_table(supplemental_path).fillna("")
+
+        if "Ai Type" in raw_df.columns:
+            def normalize_tool(value: object) -> str | None:
+                text = re.sub(r"[^a-z]", "", str(value).lower())
+                if "chatgpt" in text or "gpt" in text:
+                    return "ChatGPT"
+                if "gemini" in text:
+                    return "Gemini"
+                if any(token in text for token in ("claude", "cloude", "cloud", "cluade")):
+                    return "Claude"
+                return None
+
+            raw_df["ai_tool"] = raw_df["Ai Type"].map(normalize_tool)
+            ai_counts = raw_df["ai_tool"].dropna().value_counts()
+            if not ai_counts.empty:
+                plt.figure(figsize=(6, 6))
+                plt.pie(ai_counts.values, labels=ai_counts.index, autopct="%1.1f%%", startangle=90)
+                plt.title("AI type distribution")
+                plt.tight_layout()
+                plt.savefig(figures_dir / "ai_type_distribution.svg", dpi=180)
+                plt.close()
+                summary["ai_type_counts"] = {k: int(v) for k, v in ai_counts.to_dict().items()}
+
+            if "Category" in raw_df.columns:
+                raw_df["Category"] = raw_df["Category"].map(normalize_category)
+                category_counts = raw_df[raw_df["Category"].ne("Unknown")]["Category"].value_counts()
+                if not category_counts.empty:
+                    plt.figure(figsize=(10, 5))
+                    ax = sns.barplot(x=category_counts.index, y=category_counts.values, color="#4c72b0")
+                    for container in ax.containers:
+                        ax.bar_label(container, fmt="%d", padding=3, fontsize=8)
+                    plt.title("Category distribution")
+                    plt.xlabel("Category")
+                    plt.ylabel("Rows")
+                    plt.xticks(rotation=45, ha="right")
+                    plt.tight_layout()
+                    plt.savefig(figures_dir / "category_distribution.svg", dpi=180)
+                    plt.close()
+                    summary["category_counts"] = {k: int(v) for k, v in category_counts.to_dict().items()}
+
+                ai_df = raw_df[raw_df["ai_tool"].notna() & raw_df["Category"].ne("Unknown")]
+                if not ai_df.empty:
+                    pivot = ai_df.groupby(["Category", "ai_tool"]).size().unstack(fill_value=0)
+                    if not category_counts.empty:
+                        pivot = pivot.reindex(category_counts.index, fill_value=0)
+                    ax = pivot.plot(kind="bar", stacked=True, figsize=(11, 5))
+                    totals = pivot.sum(axis=1)
+                    for idx, total in enumerate(totals):
+                        ax.text(idx, total + totals.max() * 0.015, str(int(total)), ha="center", va="bottom", fontsize=8)
+                    ax.set_ylim(0, totals.max() * 1.14)
+                    plt.title("AI type by category")
+                    plt.xlabel("Category")
+                    plt.ylabel("Rows")
+                    plt.xticks(rotation=45, ha="right")
+                    plt.legend(title="AI Type")
+                    plt.tight_layout()
+                    plt.savefig(figures_dir / "ai_type_by_category.svg", dpi=180)
+                    plt.close()
+
+                    category_ai_counts = ai_df["Category"].value_counts()
+                    if not category_counts.empty:
+                        category_ai_counts = category_ai_counts.reindex(category_counts.index, fill_value=0)
+                    plt.figure(figsize=(10, 5))
+                    ax = sns.barplot(x=category_ai_counts.index, y=category_ai_counts.values, color="#55a868")
+                    for container in ax.containers:
+                        ax.bar_label(container, fmt="%d", padding=3, fontsize=8)
+                    plt.title("AI-generated articles by category")
+                    plt.xlabel("Category")
+                    plt.ylabel("Rows")
+                    plt.xticks(rotation=45, ha="right")
+                    plt.tight_layout()
+                    plt.savefig(figures_dir / "ai_category_distribution.svg", dpi=180)
+                    plt.savefig(figures_dir / "ai_generated_category_distribution.svg", dpi=180)
+                    plt.close()
+
     write_json(reports_dir / "eda_summary.json", summary)
 
 
@@ -160,6 +260,7 @@ def save_dl_outputs(
     label_names: list[str],
     history: tf.keras.callbacks.History,
     model: tf.keras.Model,
+    y_score: np.ndarray | None = None,
 ) -> dict[str, object]:
     model_dir = exp_dir / "models" / family
     reports_dir = exp_dir / "evaluation" / "reports"
@@ -187,10 +288,31 @@ def save_dl_outputs(
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
-    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.png", dpi=180)
+    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.svg", dpi=180)
     plt.close()
 
-    return {
+    roc_auc = None
+    if y_score is not None and len(label_names) == 2 and len(np.unique(y_true)) == 2:
+        positive_label = label_names[1]
+        y_binary = np.array([1 if label == positive_label else 0 for label in y_true])
+        roc_auc = float(roc_auc_score(y_binary, y_score))
+        fpr, tpr, _thresholds = roc_curve(y_binary, y_score)
+        pd.DataFrame({"fpr": fpr, "tpr": tpr}).to_csv(
+            reports_dir / f"roc_curve_{model_name}.csv",
+            index=False,
+        )
+        plt.figure(figsize=(5, 4))
+        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
+        plt.plot([0, 1], [0, 1], linestyle="--", color="gray", linewidth=1)
+        plt.title(f"ROC Curve: {model_name}")
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.legend(loc="lower right")
+        plt.tight_layout()
+        plt.savefig(figures_dir / f"roc_curve_{model_name}.svg", dpi=180)
+        plt.close()
+
+    row = {
         "experiment": exp_dir.name,
         "family": family,
         "model": model_name,
@@ -200,6 +322,9 @@ def save_dl_outputs(
         "saved_model_train_scope": "train_validation",
         **metric_payload(y_true, y_pred, label_names),
     }
+    if roc_auc is not None:
+        row["roc_auc"] = roc_auc
+    return row
 
 
 def train_bilstm(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, object]:
@@ -238,9 +363,11 @@ def train_bilstm(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, 
         verbose=2,
         callbacks=[tf.keras.callbacks.EarlyStopping(patience=1, restore_best_weights=True)],
     )
-    pred_ids = np.argmax(model.predict(x_test, batch_size=128, verbose=0), axis=1)
+    probabilities = model.predict(x_test, batch_size=128, verbose=0)
+    pred_ids = np.argmax(probabilities, axis=1)
     y_pred = np.array([label_names[idx] for idx in pred_ids])
-    return save_dl_outputs(exp_dir, "deep_learning", "BiLSTM_Keras", y_test_labels, y_pred, label_names, history, model)
+    positive_scores = probabilities[:, 1] if probabilities.shape[1] == 2 else None
+    return save_dl_outputs(exp_dir, "deep_learning", "BiLSTM_Keras", y_test_labels, y_pred, label_names, history, model, positive_scores)
 
 
 from experiments.transformer_block import TransformerBlock  # noqa: F401, E402
@@ -282,9 +409,11 @@ def train_mini_transformer(exp_dir: Path, label_names: list[str], seed: int) -> 
         verbose=2,
         callbacks=[tf.keras.callbacks.EarlyStopping(patience=1, restore_best_weights=True)],
     )
-    pred_ids = np.argmax(model.predict(x_test, batch_size=128, verbose=0), axis=1)
+    probabilities = model.predict(x_test, batch_size=128, verbose=0)
+    pred_ids = np.argmax(probabilities, axis=1)
     y_pred = np.array([label_names[idx] for idx in pred_ids])
-    return save_dl_outputs(exp_dir, "transformers", "MiniTransformer_Keras", y_test_labels, y_pred, label_names, history, model)
+    positive_scores = probabilities[:, 1] if probabilities.shape[1] == 2 else None
+    return save_dl_outputs(exp_dir, "transformers", "MiniTransformer_Keras", y_test_labels, y_pred, label_names, history, model, positive_scores)
 
 
 class TextDataset(Dataset):
@@ -306,7 +435,7 @@ class TextDataset(Dataset):
         return item
 
 
-def train_xlmr(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, object]:
+def train_xlmr(exp_dir: Path, label_names: list[str], seed: int, batch_size: int = 8) -> dict[str, object]:
     torch.manual_seed(seed)
     data_dir = exp_dir / "data"
     reports_dir = exp_dir / "evaluation" / "reports"
@@ -355,7 +484,7 @@ def train_xlmr(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, ob
         max_length=max_length,
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=16)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -376,18 +505,20 @@ def train_xlmr(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, ob
 
     model.eval()
     pred_ids: list[int] = []
+    positive_scores: list[float] = []
     with torch.no_grad():
         for batch in test_loader:
             labels_tensor = batch.pop("labels")
             batch = {key: value.to(device) for key, value in batch.items()}
             logits = model(**batch).logits
+            if len(label_names) == 2:
+                positive_scores.extend(torch.softmax(logits, dim=-1)[:, 1].cpu().tolist())
             pred_ids.extend(torch.argmax(logits, dim=-1).cpu().tolist())
     y_pred = np.array([id2label[idx] for idx in pred_ids])
     y_true = np.array(test_labels)
 
-    model.save_pretrained(model_dir)
-    tokenizer.save_pretrained(model_dir)
-    pd.DataFrame({"loss": losses}).to_csv(model_dir / "xlm_roberta_training_log.csv", index=False)
+    saved_model_dir = save_hf_model_with_fallback(model, tokenizer, model_dir)
+    pd.DataFrame({"loss": losses}).to_csv(saved_model_dir / "xlm_roberta_training_log.csv", index=False)
 
     model_name = "XLMRoberta_FineTuned"
     pd.DataFrame(classification_report(y_true, y_pred, labels=label_names, output_dict=True, zero_division=0)).transpose().to_csv(
@@ -405,10 +536,30 @@ def train_xlmr(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, ob
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
-    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.png", dpi=180)
+    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.svg", dpi=180)
     plt.close()
 
-    return {
+    roc_auc = None
+    if positive_scores and len(label_names) == 2 and len(np.unique(y_true)) == 2:
+        y_binary = np.array([1 if label == label_names[1] else 0 for label in y_true])
+        roc_auc = float(roc_auc_score(y_binary, np.array(positive_scores)))
+        fpr, tpr, _thresholds = roc_curve(y_binary, np.array(positive_scores))
+        pd.DataFrame({"fpr": fpr, "tpr": tpr}).to_csv(
+            reports_dir / f"roc_curve_{model_name}.csv",
+            index=False,
+        )
+        plt.figure(figsize=(5, 4))
+        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
+        plt.plot([0, 1], [0, 1], linestyle="--", color="gray", linewidth=1)
+        plt.title(f"ROC Curve: {model_name}")
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.legend(loc="lower right")
+        plt.tight_layout()
+        plt.savefig(figures_dir / f"roc_curve_{model_name}.svg", dpi=180)
+        plt.close()
+
+    row = {
         "experiment": exp_dir.name,
         "family": "transformers",
         "model": model_name,
@@ -418,6 +569,9 @@ def train_xlmr(exp_dir: Path, label_names: list[str], seed: int) -> dict[str, ob
         "saved_model_train_scope": "train_validation",
         **metric_payload(y_true, y_pred, label_names),
     }
+    if roc_auc is not None:
+        row["roc_auc"] = roc_auc
+    return row
 
 
 def write_step_report(exp_dir: Path, rows: list[dict[str, object]]) -> None:

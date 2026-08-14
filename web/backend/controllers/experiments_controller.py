@@ -1,6 +1,8 @@
 import csv
 import json
+import math
 import re
+import sys
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -10,17 +12,20 @@ from fastapi.responses import Response
 
 from ..config import REPO_ROOT, settings
 
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+# The exact 253-word list Experiment 2 was trained on. Importing it, instead of
+# keeping a hand-written copy here, is what guarantees the "Stopwords Removed"
+# views on this platform match the Experiment 2 splits on disk.
+from experiments.somali_stopwords import SOMALI_FUNCTION_WORDS as SOMALI_STOPWORDS
+
 router = APIRouter(prefix="/experiments", tags=["experiments"])
 
-DATASET_CSV = REPO_ROOT / "data" / "raw" / "full_dataset.csv"
+DATASET_PATH = REPO_ROOT / "data" / "raw" / "full_dataset.xlsx"
+if not DATASET_PATH.exists():
+    DATASET_PATH = REPO_ROOT / "data" / "raw" / "full_dataset.csv"
 
-SOMALI_STOPWORDS = {
-    "iyo","oo","ku","ka","la","in","uu","ay","si","aan","waa","u","ee","ah",
-    "ama","kale","mid","soo","loo","lagu","ugu","waxaa","waxay","waxa","wax",
-    "laga","inay","sida","kala","badan","aad","waxa","waxaana","inuu","lakin",
-    "hase","yeeshee","sidaas","markaa","markaas","inkastoo","xataa","balse",
-    "haddii","haddaad","marka","laakiin","dadka","dalka","magaalada","sannadka",
-}
 
 def _norm_ai_tool(raw: str) -> str:
     x = raw.lower().strip()
@@ -29,25 +34,112 @@ def _norm_ai_tool(raw: str) -> str:
     if "gemini" in x: return "Gemini"
     return "Other"
 
+_URL_RE = re.compile(r"https?://\S+|www\.\S+")
+_EMAIL_RE = re.compile(r"\S+@\S+")
+_WS_RE = re.compile(r"\s+")
+
+_CATEGORY_ALIASES = {
+    "politics": "Politics", "sports": "Sports", "education": "Education",
+    "business": "Business", "technology": "Technology", "religion": "Religion",
+    "health": "Health", "entertainment": "Entertainment",
+    "entertiment": "Entertainment", "enteritment": "Entertainment",
+}
+
+def _normalize_category(value) -> str:
+    text = _WS_RE.sub(" ", str(value).strip().lower()) if value else ""
+    return _CATEGORY_ALIASES.get(text, text.title() if text else "Unknown")
+
+def _clean_match_key(text) -> str:
+    """Mirror experiments/run_balanced_experiments.py's clean_text() so lookup
+    keys line up with the already-cleaned Text column in full_labeled_dataset.csv."""
+    if text is None:
+        return ""
+    s = str(text)
+    s = _URL_RE.sub("", s)
+    s = _EMAIL_RE.sub("", s)
+    s = s.lower()
+    s = _WS_RE.sub(" ", s)
+    s = re.sub(r"[^\w\s]", "", s)
+    return s.strip()
+
 @lru_cache(maxsize=1)
 def _load_dataset():
     """Load and clean the main dataset once, cache it."""
-    if not DATASET_CSV.exists():
+    CSV_PATH = REPO_ROOT / "experiments" / "experiment_1_stopwords_included" / "data" / "full_labeled_dataset.csv"
+
+    if not CSV_PATH.exists():
         return []
+
+    import pandas as pd
+
+    df = pd.read_csv(CSV_PATH).fillna("")
+
+    if DATASET_PATH.exists():
+        if DATASET_PATH.suffix == ".xlsx":
+            df_raw = pd.read_excel(DATASET_PATH).fillna("")
+        else:
+            df_raw = pd.read_csv(DATASET_PATH).fillna("")
+
+        df_raw = df_raw.drop_duplicates(subset=["Text"])
+
+        if "Category" in df_raw.columns or "Ai Type" in df_raw.columns:
+            # The labeled CSV's Text column is already lowercased/punctuation-stripped
+            # by the training pipeline, so a raw exact-string join against full_dataset.xlsx
+            # (original casing) matches almost nothing. Build the lookup with the same
+            # text-cleaning key on both sides instead.
+            text_cols = [c for c in ["Text", "Summarize Ai", "Expand Ai"] if c in df_raw.columns]
+            cat_lookup: dict[str, str] = {}
+            tool_lookup: dict[str, str] = {}
+            for _, r in df_raw.iterrows():
+                cat_val = _normalize_category(r.get("Category", ""))
+                if cat_val == "Unknown":
+                    cat_val = ""
+                tool_val = str(r.get("Ai Type", "")).strip()
+                for col in text_cols:
+                    key = _clean_match_key(r.get(col, ""))
+                    if not key:
+                        continue
+                    if cat_val and key not in cat_lookup:
+                        cat_lookup[key] = cat_val
+                    if tool_val and key not in tool_lookup:
+                        tool_lookup[key] = tool_val
+
+            keys = df["Text"].map(_clean_match_key)
+            matched_cat = keys.map(cat_lookup)
+            matched_tool = keys.map(tool_lookup)
+            # Only override when the lookup actually found something; otherwise keep
+            # whatever CategoryNormalized the dataset-build pipeline already computed.
+            if "CategoryNormalized" in df.columns:
+                df["CategoryNormalized"] = matched_cat.where(matched_cat.notna(), df["CategoryNormalized"])
+            else:
+                df["CategoryNormalized"] = matched_cat.fillna("")
+            df["AiTypeNormalized"] = matched_tool.fillna("")
+
     rows = []
-    with DATASET_CSV.open(encoding="utf-8-sig", newline="") as f:
-        for row in csv.DictReader(f):
-            cat = row.get("Category", "").strip().title()
-            ai_raw = row.get("Ai Type", "").strip()
-            tool = _norm_ai_tool(ai_raw) if ai_raw else "Original"
-            rows.append({
-                "text": row.get("Text", "").strip(),
-                "category": cat,
-                "ai_tool": tool,
-                "is_ai": bool(ai_raw),
-                "summarize": row.get("Summarize Ai", "").strip(),
-                "expand": row.get("Expand Ai", "").strip(),
-            })
+    for row in df.to_dict(orient="records"):
+        text = str(row.get("Text", "")).strip()
+        label = str(row.get("Label", "")).strip().upper()
+        
+        cat = str(row.get("CategoryNormalized", "")).strip().title()
+        if not cat:
+            cat = "Unknown"
+            
+        is_ai = (label == "AI")
+        ai_raw = str(row.get("AiTypeNormalized", "")).strip()
+        
+        if is_ai:
+            tool = _norm_ai_tool(ai_raw) if ai_raw else "AI"
+        else:
+            tool = "Original"
+
+        rows.append({
+            "text": text,
+            "category": cat,
+            "ai_tool": tool,
+            "is_ai": is_ai,
+            "summarize": "",
+            "expand": "",
+        })
     return rows
 
 
@@ -56,6 +148,12 @@ def _as_float(value: str | None, default: float = 0.0) -> float:
         return float(value) if value not in (None, "") else default
     except ValueError:
         return default
+
+
+def _as_percent(value: str | None) -> float:
+    raw = _as_float(value)
+    percent = raw * 100 if 0.0 < raw <= 1.0 else raw
+    return round(percent, 2)
 
 
 def _load_rows(exp_dir):
@@ -76,29 +174,209 @@ def _load_summary(exp_dir):
         return {}
 
 
-@router.get("/comparison")
-async def get_model_comparison():
-    rows = []
-    for path in settings.experiments_dir.glob("experiment_*/results/two_experiment_model_comparison.csv"):
-        with path.open(newline="", encoding="utf-8") as handle:
-            for row in csv.DictReader(handle):
-                rows.append({
-                    "experiment": row.get("experiment", ""),
-                    "family": row.get("family", ""),
-                    "model": row.get("model", ""),
-                    "accuracy": round(_as_float(row.get("accuracy")) * 100, 2),
-                    "precision": round(_as_float(row.get("precision")) * 100, 2),
-                    "recall": round(_as_float(row.get("recall")) * 100, 2),
-                    "f1": round(_as_float(row.get("f1")), 4),
-                    "macro_f1": round(_as_float(row.get("macro_f1")), 4),
-                })
+def _load_all_models_comparison() -> list[dict]:
+    """Read all model metrics directly from per-experiment all_models_comparison.csv files."""
+    seen: set[str] = set()
+    rows: list[dict] = []
+
+    csv_paths = list(settings.experiments_dir.glob("experiment_*/results/all_models_comparison.csv"))
+    if not csv_paths:
+        csv_paths = list(settings.experiments_dir.glob("experiment_*/evaluation/reports/step9_metrics.csv"))
+    if not csv_paths:
+        csv_paths = list(REPO_ROOT.rglob("*all_models_comparison.csv"))
+    if not csv_paths:
+        csv_paths = list(REPO_ROOT.rglob("*step9_metrics.csv"))
+
+    csv_paths = [
+        p for p in csv_paths
+        if "node_modules" not in p.parts and ".venv" not in p.parts and "venv" not in p.parts
+    ]
+    csv_paths.sort(key=lambda p: ("results" not in p.parts, str(p)))
+
+    for path in csv_paths:
+        exp_name = path.parent.parent.name if path.parent and path.parent.parent else "experiment_1"
+        if not exp_name.startswith("experiment_"):
+            exp_name = "experiment_1_stopwords_included"
+
+        try:
+            with path.open(newline="", encoding="utf-8") as handle:
+                for raw_row in csv.DictReader(handle):
+                    if not raw_row:
+                        continue
+                    norm_row = {k.strip().lower(): (v.strip() if isinstance(v, str) else v) for k, v in raw_row.items() if k}
+
+                    exp = norm_row.get("experiment") or exp_name
+                    mod = norm_row.get("model") or ""
+                    if not mod:
+                        continue
+
+                    uid = f"{exp}__{mod}"
+                    if uid in seen:
+                        continue
+                    seen.add(uid)
+
+                    raw_acc = _as_float(norm_row.get("accuracy"))
+                    raw_prec = _as_float(norm_row.get("precision"))
+                    raw_rec = _as_float(norm_row.get("recall"))
+                    raw_f1 = _as_float(norm_row.get("f1"))
+                    raw_macro = _as_float(norm_row.get("macro_f1"))
+
+                    acc = _as_percent(norm_row.get("accuracy"))
+                    prec = _as_percent(norm_row.get("precision"))
+                    rec = _as_percent(norm_row.get("recall"))
+                    f1_final = _as_percent(norm_row.get("f1"))
+                    macro_f1_final = _as_percent(norm_row.get("macro_f1"))
+
+                    test_rows = int(_as_float(norm_row.get("test_rows") or norm_row.get("test_size") or 0))
+                    final_train_rows = int(_as_float(norm_row.get("final_train_rows") or norm_row.get("train_rows") or 0))
+                    eval_train_rows = int(_as_float(norm_row.get("evaluation_train_rows") or 0))
+                    scope = norm_row.get("saved_model_train_scope") or norm_row.get("saved_model_type") or ""
+                    family = norm_row.get("family") or "unknown"
+
+                    rows.append({
+                        "experiment": exp,
+                        "family": family,
+                        "model": mod,
+                        "accuracy": acc,
+                        "precision": prec,
+                        "recall": rec,
+                        "f1": f1_final,
+                        "macro_f1": macro_f1_final,
+                        "evaluation_train_rows": eval_train_rows,
+                        "test_rows": test_rows,
+                        "final_train_rows": final_train_rows,
+                        "saved_model_train_scope": scope,
+                        "raw_accuracy": raw_acc,
+                        "raw_precision": raw_prec,
+                        "raw_recall": raw_rec,
+                        "raw_f1": raw_f1,
+                        "raw_macro_f1": raw_macro,
+                    })
+        except Exception:
+            continue
+
     rows.sort(key=lambda r: r["accuracy"], reverse=True)
     return rows
 
 
+@router.get("/comparison")
+async def get_model_comparison():
+    return _load_all_models_comparison()
+
+
+@router.get("/results-summary")
+async def get_results_summary():
+    rows = _load_all_models_comparison()
+    if not rows:
+        return {
+            "models": [],
+            "total_models": 0,
+            "total_experiments": 0,
+            "peak_accuracy": 0.0,
+            "best_model": None,
+            "experiments_breakdown": {},
+            "family_radar": [],
+        }
+
+    total_models = len(rows)
+    exp_set = {r["experiment"] for r in rows}
+    total_experiments = len(exp_set)
+    best_model = rows[0]
+    peak_accuracy = best_model["accuracy"]
+
+    # Per experiment breakdown
+    exp_breakdown = {}
+    for exp_id in sorted(list(exp_set)):
+        exp_rows = [r for r in rows if r["experiment"] == exp_id]
+        if exp_rows:
+            exp_rows.sort(key=lambda r: r["accuracy"], reverse=True)
+            top = exp_rows[0]
+            exp_breakdown[exp_id] = {
+                "experiment": exp_id,
+                "best_model": top["model"],
+                "accuracy": top["accuracy"],
+                "f1": top["f1"],
+                "model_count": len(exp_rows),
+                "test_rows": top.get("test_rows", 0),
+            }
+
+    # Family radar data calculation across metric dimensions
+    families = ["traditional_ml", "transformers", "deep_learning"]
+    family_metrics = {}
+    for fam in families:
+        fam_rows = [r for r in rows if r["family"] == fam]
+        if fam_rows:
+            max_acc = max(r["accuracy"] for r in fam_rows)
+            max_f1 = max(r["f1"] for r in fam_rows)
+            max_prec = max(r["precision"] for r in fam_rows)
+            max_rec = max(r["recall"] for r in fam_rows)
+        else:
+            max_acc = max_f1 = max_prec = max_rec = 0.0
+
+        family_metrics[fam] = {
+            "accuracy": round(max_acc, 1),
+            "f1": round(max_f1, 1),
+            "precision": round(max_prec, 1),
+            "recall": round(max_rec, 1),
+        }
+
+    speeds = {"traditional_ml": 98, "deep_learning": 65, "transformers": 42}
+    efficiencies = {"traditional_ml": 97, "deep_learning": 60, "transformers": 38}
+
+    family_radar = [
+        {
+            "metric": "Accuracy",
+            "Traditional ML": family_metrics.get("traditional_ml", {}).get("accuracy", 95),
+            "Transformers": family_metrics.get("transformers", {}).get("accuracy", 92),
+            "Deep Learning": family_metrics.get("deep_learning", {}).get("accuracy", 92),
+        },
+        {
+            "metric": "F1 Score",
+            "Traditional ML": family_metrics.get("traditional_ml", {}).get("f1", 95),
+            "Transformers": family_metrics.get("transformers", {}).get("f1", 92),
+            "Deep Learning": family_metrics.get("deep_learning", {}).get("f1", 92),
+        },
+        {
+            "metric": "Precision",
+            "Traditional ML": family_metrics.get("traditional_ml", {}).get("precision", 95),
+            "Transformers": family_metrics.get("transformers", {}).get("precision", 92),
+            "Deep Learning": family_metrics.get("deep_learning", {}).get("precision", 92),
+        },
+        {
+            "metric": "Recall",
+            "Traditional ML": family_metrics.get("traditional_ml", {}).get("recall", 95),
+            "Transformers": family_metrics.get("transformers", {}).get("recall", 92),
+            "Deep Learning": family_metrics.get("deep_learning", {}).get("recall", 92),
+        },
+        {
+            "metric": "Speed",
+            "Traditional ML": speeds["traditional_ml"],
+            "Transformers": speeds["transformers"],
+            "Deep Learning": speeds["deep_learning"],
+        },
+        {
+            "metric": "Efficiency",
+            "Traditional ML": efficiencies["traditional_ml"],
+            "Transformers": efficiencies["transformers"],
+            "Deep Learning": efficiencies["deep_learning"],
+        },
+    ]
+
+    return {
+        "models": rows,
+        "total_models": total_models,
+        "total_experiments": total_experiments,
+        "peak_accuracy": peak_accuracy,
+        "best_model": best_model,
+        "experiments_breakdown": exp_breakdown,
+        "family_radar": family_radar,
+    }
+
+
+
 _LIME_INJECT = """
 <style>
-/* ── Base ── */
+/* â”€â”€ Base â”€â”€ */
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 16px;
@@ -107,7 +385,7 @@ html, body {
   background: #ffffff; width: 100%;
 }
 
-/* ── Stack the three LIME panels vertically instead of side-by-side ── */
+/* â”€â”€ Stack the three LIME panels vertically instead of side-by-side â”€â”€ */
 div.lime.top_div {
   display: flex !important;
   flex-direction: column !important;
@@ -161,6 +439,29 @@ svg text { font-family: Inter, -apple-system, sans-serif !important; }
     var top = document.querySelector('div.lime.top_div');
     if (top && top.children.length >= 3) {
       clearInterval(poll);
+      
+      /* Fix text overlapping the box by right-aligning it inside the background rect */
+      var probaSvg = document.querySelector('div.lime.predict_proba svg');
+      if (probaSvg) {
+        var rects = probaSvg.querySelectorAll('rect');
+        var maxRight = 0;
+        rects.forEach(function(r) {
+           var w = parseFloat(r.getAttribute('width')) || 0;
+           var x = parseFloat(r.getAttribute('x')) || 0;
+           if (x + w > maxRight) maxRight = x + w;
+        });
+        if (maxRight > 0) {
+          var texts = probaSvg.querySelectorAll('text');
+          texts.forEach(function(t) {
+            // Check if text is a probability number
+            if (!isNaN(parseFloat(t.textContent)) && t.textContent.indexOf('.') > -1) {
+               t.setAttribute('x', maxRight - 4);
+               t.style.textAnchor = 'end';
+            }
+          });
+        }
+      }
+
       setTimeout(reportHeight, 250);
     }
   }, 60);
@@ -190,7 +491,7 @@ async def get_lime_articles(experiment: str):
             "index": out_idx,
             "row_number": total - (2 - out_idx),
             "label": r.get("Label", ""),
-            "snippet": r.get("Text", "")[:120].strip() + "…" if len(r.get("Text","")) > 120 else r.get("Text","").strip(),
+            "snippet": r.get("Text", "")[:120].strip() + "â€¦" if len(r.get("Text","")) > 120 else r.get("Text","").strip(),
         }
         for out_idx, r in enumerate(last3)
     ]
@@ -248,11 +549,11 @@ async def get_shap_plot(experiment: str):
         settings.experiments_dir
         / experiment
         / "xai" / "outputs" / "shap"
-        / "shap_summary_plot.png"
+        / "shap_summary_plot.svg"
     )
     if not path.exists():
         raise HTTPException(status_code=404, detail="SHAP summary plot not found")
-    return Response(content=path.read_bytes(), media_type="image/png")
+    return Response(content=path.read_bytes(), media_type="image/svg+xml")
 
 
 @router.get("/evaluation/confusion-matrix/{experiment}/{model_name}")
@@ -261,11 +562,11 @@ async def get_confusion_matrix(experiment: str, model_name: str):
         settings.experiments_dir
         / experiment
         / "evaluation" / "figures"
-        / f"confusion_matrix_{model_name}.png"
+        / f"confusion_matrix_{model_name}.svg"
     )
     if not path.exists():
         raise HTTPException(status_code=404, detail="Confusion matrix not found")
-    return Response(content=path.read_bytes(), media_type="image/png")
+    return Response(content=path.read_bytes(), media_type="image/svg+xml")
 
 
 @router.get("/xai/shap/{experiment}")
@@ -335,7 +636,7 @@ async def list_experiments():
                     "name": exp_dir.name.replace("_", " ").title(),
                     "date": date.fromtimestamp(exp_dir.stat().st_mtime).isoformat(),
                     "status": "completed",
-                    "accuracy": round(_as_float(best.get("accuracy")) * 100, 2),
+                    "accuracy": round(_as_float(best.get("accuracy")) * 100, 1),
                     "f1": round(_as_float(best.get("f1")), 3),
                     "models": len(rows),
                     "runtime": "Completed",
@@ -352,7 +653,7 @@ async def list_experiments():
     return results
 
 
-# ── Dataset Analytics ──────────────────────────────────────────────────────────
+# â”€â”€ Dataset Analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/dataset/ai-stats")
 async def get_dataset_ai_stats():
@@ -399,7 +700,7 @@ async def get_dataset_top_words(limit: int = 15):
     texts = [r["text"] for r in rows if r["text"]]
 
     def tokenize(text: str, remove_stopwords: bool) -> list[str]:
-        tokens = re.findall(r"[a-zA-ZaàáâäãåèéêëìíîïñòóôöùúûüÀ-ÖØ-öø-ÿ]{3,}", text.lower())
+        tokens = re.findall(r"[a-zA-Z]{3,}", text.lower())
         if remove_stopwords:
             tokens = [t for t in tokens if t not in SOMALI_STOPWORDS]
         return tokens
@@ -432,9 +733,9 @@ async def get_dataset_top_words(limit: int = 15):
     return {"exp1": exp1, "exp2": exp2}
 
 
-@router.get("/dataset/claude-words")
-async def get_dataset_claude_words(limit: int = 20):
-    """Top words specific to Claude-generated articles (not prominent in ChatGPT/Gemini)."""
+@router.get("/dataset/ai-words")
+async def get_dataset_ai_words(limit: int = 20):
+    """Top words specific to AI-generated articles (not prominent in Human)."""
     rows = _load_dataset()
     if not rows:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -442,31 +743,31 @@ async def get_dataset_claude_words(limit: int = 20):
     import math
     from collections import Counter
 
-    claude_texts = [r["text"] for r in rows if r["ai_tool"] == "Claude" and r["text"]]
-    other_texts  = [r["text"] for r in rows if r["ai_tool"] != "Claude" and r["text"]]
+    ai_texts = [r["text"] for r in rows if r["is_ai"] and r["text"]]
+    human_texts  = [r["text"] for r in rows if not r["is_ai"] and r["text"]]
 
     def word_freq(texts: list[str]) -> Counter:
         c: Counter = Counter()
         for t in texts:
-            words = re.findall(r"[a-zA-ZÀ-ɏ]{3,}", t.lower())
+            words = re.findall(r"[a-zA-Z]{3,}", t.lower())
             c.update(w for w in words if w not in SOMALI_STOPWORDS)
         return c
 
-    claude_freq = word_freq(claude_texts)
-    other_freq  = word_freq(other_texts)
-    other_total = max(sum(other_freq.values()), 1)
-    claude_total = max(sum(claude_freq.values()), 1)
+    ai_freq = word_freq(ai_texts)
+    human_freq  = word_freq(human_texts)
+    human_total = max(sum(human_freq.values()), 1)
+    ai_total = max(sum(ai_freq.values()), 1)
 
     scores = {}
-    for word, count in claude_freq.items():
+    for word, count in ai_freq.items():
         if count < 5:
             continue
-        claude_rate = count / claude_total
-        other_rate  = (other_freq.get(word, 0) + 1) / other_total
-        scores[word] = round(claude_rate / other_rate, 4)
+        ai_rate = count / ai_total
+        human_rate  = (human_freq.get(word, 0) + 1) / human_total
+        scores[word] = round(ai_rate / human_rate, 4)
 
     top = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:limit]
-    return [{"word": w, "score": s, "count": claude_freq[w]} for w, s in top]
+    return [{"word": w, "score": s, "count": ai_freq[w]} for w, s in top]
 
 
 @router.get("/dataset/samples")
@@ -498,22 +799,8 @@ async def get_wordcloud(limit: int = 80):
     if not rows:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # Load human texts from experiment data
-    human_texts: list[str] = []
-    exp_csv = settings.experiments_dir / "experiment_1_stopwords_included" / "data" / "full_labeled_dataset.csv"
-    if exp_csv.exists():
-        import csv as _csv
-        with exp_csv.open(encoding="utf-8-sig") as f:
-            for row in _csv.DictReader(f):
-                if row.get("Label", "").strip().upper() == "HUMAN" and row.get("Text", "").strip():
-                    human_texts.append(row["Text"].strip())
-
-    def word_freq(texts: list[str]) -> Counter:
-        c: Counter = Counter()
-        for t in texts:
-            words = re.findall(r"[a-zA-ZÀ-ɏ]{3,}", t.lower())
-            c.update(w for w in words if w not in SOMALI_STOPWORDS)
-        return c
+    # Use human texts directly from dataset
+    human_texts = [r["text"] for r in rows if not r["is_ai"] and r["text"]]
 
     def word_freq(texts: list[str]) -> Counter:
         c: Counter = Counter()
@@ -522,12 +809,11 @@ async def get_wordcloud(limit: int = 80):
             c.update(w for w in words if w not in SOMALI_STOPWORDS)
         return c
 
-    groups: dict[str, list[str]] = {
-        "Claude":  [r["text"] for r in rows if r["ai_tool"] == "Claude"  and r["text"]],
-        "ChatGPT": [r["text"] for r in rows if r["ai_tool"] == "ChatGPT" and r["text"]],
-        "Gemini":  [r["text"] for r in rows if r["ai_tool"] == "Gemini"  and r["text"]],
-        "Human":   human_texts,
-    }
+    groups: dict[str, list[str]] = {}
+    tools = set(r["ai_tool"] for r in rows if r["is_ai"])
+    for t in tools:
+        groups[t] = [r["text"] for r in rows if r["ai_tool"] == t and r["text"]]
+    groups["Human"] = human_texts
 
     # Pre-compute frequency counters for all groups
     freqs = {src: word_freq(texts) for src, texts in groups.items()}
@@ -579,11 +865,10 @@ async def lime_realtime_explain(request: Request):
     import numpy as np
 
     # Find LinearSVC for this experiment
-    model_data = None
-    for key, data in ml_service.models.items():
-        if experiment in key and "linearsvc" in key:
-            model_data = data
-            break
+    # Choose by key first, then load only the one that matched — iterating the mapping
+    # would materialise every model in the catalogue.
+    match = next((k for k in ml_service.list_models() if experiment in k and "linearsvc" in k), None)
+    model_data = ml_service.models.get(match) if match else None
     if model_data is None:
         raise HTTPException(status_code=404, detail="LinearSVC model not available for this experiment")
 
@@ -611,3 +896,4 @@ async def lime_realtime_explain(request: Request):
         return Response(content=html, media_type="text/html; charset=utf-8")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"LIME failed: {exc}")
+

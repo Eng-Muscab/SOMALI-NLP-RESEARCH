@@ -44,8 +44,19 @@ def _csv_env(name: str, default: list[str]) -> list[str]:
 
 def _path_env(name: str, default: Path) -> Path:
     value = os.getenv(name)
-    path = Path(value) if value else default
-    return path if path.is_absolute() else BACKEND_DIR / path
+    if not value:
+        return default
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    backend_res = (BACKEND_DIR / path).resolve()
+    if backend_res.exists():
+        return backend_res
+    repo_res = (REPO_ROOT / path).resolve()
+    if repo_res.exists():
+        return repo_res
+    return default
+
 
 
 @lru_cache

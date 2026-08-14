@@ -104,7 +104,7 @@ export const DashboardHero = ({ modelCount, bestAccuracy, connected }: Dashboard
             {bestAccuracy > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/10 px-3.5 py-1.5 text-xs font-bold text-sky-200 ring-1 ring-sky-400/20">
                 <Activity size={11} />
-                Peak {bestAccuracy.toFixed(2)}% accuracy
+                Peak {bestAccuracy.toFixed(1)}% accuracy
               </span>
             )}
           </motion.div>

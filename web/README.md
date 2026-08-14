@@ -16,7 +16,7 @@ cd web
 
 This starts:
 
-- Backend docs: `http://127.0.0.1:8001/docs`
+- Backend docs: `http://127.0.0.1:8000/docs`
 - Frontend UI: `http://localhost:5173`
 
 ## Backend
@@ -31,7 +31,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
 cd ..
-.\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8001 --reload
+.\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## Frontend
@@ -42,7 +42,7 @@ npm install
 npm.cmd run dev
 ```
 
-The frontend calls `/api/*` and Vite proxies those requests to `http://localhost:8001`. For a custom API URL, set `VITE_API_BASE_URL` before starting the frontend.
+The frontend calls `/api/*` and Vite proxies those requests to `http://localhost:8000`. For a custom API URL, set `VITE_API_BASE_URL` before starting the frontend.
 
 ## Database
 

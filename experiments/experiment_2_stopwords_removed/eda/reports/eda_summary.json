@@ -1,10 +1,25 @@
 {
-  "rows": 4109,
+  "rows": 7967,
   "label_counts": {
-    "AI": 2090,
-    "HUMAN": 2019
+    "AI": 3982,
+    "HUMAN": 3985
   },
-  "word_count_mean": 316.2058895108299,
-  "word_count_median": 219.0,
-  "word_count_max": 2430
+  "word_count_mean": 232.3623697753232,
+  "word_count_median": 178.0,
+  "word_count_max": 2057,
+  "ai_type_counts": {
+    "ChatGPT": 2163,
+    "Gemini": 2028,
+    "Claude": 1653
+  },
+  "category_counts": {
+    "Politics": 1386,
+    "Sports": 993,
+    "Health": 616,
+    "Entertainment": 599,
+    "Technology": 584,
+    "Religion": 558,
+    "Business": 556,
+    "Education": 550
+  }
 }

@@ -3,24 +3,25 @@
     "experiment": "experiment_2_stopwords_removed",
     "family": "traditional_ml",
     "model": "LinearSVC_TFIDF",
-    "evaluation_train_rows": 4990,
-    "test_rows": 879,
-    "final_train_rows": 5869,
-    "saved_model_train_scope": "full_dataset",
-    "accuracy": 0.9340159271899886,
-    "precision": 0.9353735560065414,
-    "recall": 0.9340159271899886,
-    "f1": 0.9339974787073764,
-    "macro_f1": 0.934009009009009
+    "evaluation_train_rows": 9673,
+    "test_rows": 1708,
+    "final_train_rows": 9673,
+    "saved_model_train_scope": "train_validation",
+    "accuracy": 0.9338407494145199,
+    "precision": 0.9342748360868366,
+    "recall": 0.9338407494145199,
+    "f1": 0.9338242126358846,
+    "macro_f1": 0.9338242126358847,
+    "roc_auc": 0.9843140696213988
   },
   "model_count": 7,
   "models": [
     "LinearSVC_TFIDF",
     "LogisticRegression_TFIDF",
-    "BiLSTM_Keras",
-    "XGBoost_TFIDF",
-    "RandomForest_TFIDF",
     "MiniTransformer_Keras",
+    "BiLSTM_Keras",
+    "RandomForest_TFIDF",
+    "XGBoost_TFIDF",
     "XLMRoberta_FineTuned"
   ]
 }

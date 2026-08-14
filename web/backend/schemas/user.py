@@ -47,9 +47,9 @@ class AdminUserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     name: str = ""
     role: UserRole = UserRole.VIEWER
-    daily_prediction_limit: int = Field(default=20, ge=-1)
-    monthly_prediction_limit: int = Field(default=200, ge=-1)
-    max_text_length: int = Field(default=2000, ge=100)
+    daily_prediction_limit: int = Field(default=-1, ge=-1)
+    monthly_prediction_limit: int = Field(default=-1, ge=-1)
+    max_text_length: int = Field(default=-1, ge=-1)
 
     @field_validator("email")
     @classmethod

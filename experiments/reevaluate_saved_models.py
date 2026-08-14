@@ -34,10 +34,12 @@ def evaluate_keras_model(
     y_test_labels = np.array(test["labels"])
     custom_objects = {"TransformerBlock": TransformerBlock}
     model = tf.keras.models.load_model(model_path, compile=False, custom_objects=custom_objects)
-    pred_ids = np.argmax(model.predict(test["input_ids"], batch_size=128, verbose=0), axis=1)
+    probabilities = model.predict(test["input_ids"], batch_size=128, verbose=0)
+    pred_ids = np.argmax(probabilities, axis=1)
     y_pred = np.array([label_names[idx] for idx in pred_ids])
+    positive_scores = probabilities[:, 1] if probabilities.shape[1] == 2 else None
     history = type("History", (), {"history": {}})()
-    return save_dl_outputs(exp_dir, family, model_name, y_test_labels, y_pred, label_names, history, model)
+    return save_dl_outputs(exp_dir, family, model_name, y_test_labels, y_pred, label_names, history, model, positive_scores)
 
 
 def evaluate_xlmr(exp_dir: Path, label_names: list[str]) -> dict[str, object]:
@@ -73,6 +75,9 @@ def evaluate_xlmr(exp_dir: Path, label_names: list[str]) -> dict[str, object]:
             pred_ids.extend(torch.argmax(model(**batch).logits, dim=-1).cpu().tolist())
     y_pred = np.array([id2label[idx] for idx in pred_ids])
     y_true = test_df["Label"].astype(str).to_numpy()
+    train_rows = len(pd.read_csv(data_dir / "clean_train.csv", keep_default_na=False))
+    val_rows = len(pd.read_csv(data_dir / "clean_val.csv", keep_default_na=False))
+    evaluation_rows = train_rows + val_rows
     pd.DataFrame(
         classification_report(y_true, y_pred, labels=label_names, output_dict=True, zero_division=0)
     ).transpose().to_csv(reports_dir / f"classification_report_{model_name}.csv", index_label="label")
@@ -87,15 +92,15 @@ def evaluate_xlmr(exp_dir: Path, label_names: list[str]) -> dict[str, object]:
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
-    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.png", dpi=180)
+    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.svg", dpi=180)
     plt.close()
     return {
         "experiment": exp_dir.name,
         "family": "transformers",
         "model": model_name,
-        "evaluation_train_rows": 4990,
+        "evaluation_train_rows": evaluation_rows,
         "test_rows": int(len(test_df)),
-        "final_train_rows": 4990,
+        "final_train_rows": evaluation_rows,
         "saved_model_train_scope": "train_validation",
         **metric_payload(y_true, y_pred, label_names),
     }

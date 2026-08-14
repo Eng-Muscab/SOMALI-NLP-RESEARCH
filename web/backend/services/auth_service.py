@@ -16,6 +16,8 @@ async def ensure_user_indexes() -> None:
     await db.activity_logs.create_index("created_at")
     await db.activity_logs.create_index("user_email")
     await db.predictions.create_index("created_at")
+    await db.submitted_articles.create_index("created_at")
+    await db.submitted_articles.create_index("category")
 
 
 async def ensure_demo_user() -> None:
@@ -23,7 +25,7 @@ async def ensure_demo_user() -> None:
     await ensure_user_indexes()
 
     demo_email = "demo@somalinlp.io"
-    demo_password = "Demo12345"
+    demo_password = "Demo12345!"
     limits = ROLE_LIMITS[UserRole.SUPER_ADMIN]
 
     existing = await db.users.find_one({"email": demo_email})
@@ -65,7 +67,7 @@ def serialize_user(user: dict | None) -> dict | None:
         "email": user.get("email"),
         "name": user.get("name", ""),
         "role": user.get("role", UserRole.VIEWER),
-        "max_text_length": user.get("max_text_length", 5000),
+        "max_text_length": user.get("max_text_length", 50000),
     }
 
 
@@ -101,16 +103,20 @@ async def register_user(email: str, password: str, name: str = ""):
     return {"id": str(res.inserted_id), "email": normalized_email, "name": name, "role": UserRole.VIEWER}
 
 
+class AuthenticationError(Exception):
+    """Raised with a specific, user-facing reason login failed."""
+
+
 async def authenticate_user(email: str, password: str):
     db = get_database()
     normalized_email = email.strip().lower()
     user = await db.users.find_one({"email": normalized_email})
     if not user:
-        return None
+        raise AuthenticationError("No account found with this email. Check the email or register.")
     if not verify_password(password, user.get("password", "")):
-        return None
+        raise AuthenticationError("Incorrect password.")
     if not user.get("is_active", True):
-        return None
+        raise AuthenticationError("This account has been deactivated. Contact an administrator.")
 
     # Update last_login
     await db.users.update_one(

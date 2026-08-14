@@ -1,0 +1,135 @@
+{
+  "experiment": "experiment_1_stopwords_included",
+  "min_words": 20,
+  "chunks_evaluated": 56202,
+  "models": {
+    "LinearSVC_TFIDF": {
+      "paragraph_accuracy": 0.8419,
+      "document_accuracy": 0.9479,
+      "by_length": {
+        "30 words": {
+          "chunks": 24623,
+          "accuracy": 0.7938
+        },
+        "50 words": {
+          "chunks": 14419,
+          "accuracy": 0.8446
+        },
+        "80 words": {
+          "chunks": 8700,
+          "accuracy": 0.8874
+        },
+        "120 words": {
+          "chunks": 5530,
+          "accuracy": 0.9195
+        },
+        "200 words": {
+          "chunks": 2930,
+          "accuracy": 0.9512
+        }
+      }
+    },
+    "LogisticRegression_TFIDF": {
+      "paragraph_accuracy": 0.8549,
+      "document_accuracy": 0.9321,
+      "by_length": {
+        "30 words": {
+          "chunks": 24623,
+          "accuracy": 0.8127
+        },
+        "50 words": {
+          "chunks": 14419,
+          "accuracy": 0.8567
+        },
+        "80 words": {
+          "chunks": 8700,
+          "accuracy": 0.8961
+        },
+        "120 words": {
+          "chunks": 5530,
+          "accuracy": 0.9241
+        },
+        "200 words": {
+          "chunks": 2930,
+          "accuracy": 0.9478
+        }
+      }
+    },
+    "RandomForest_TFIDF": {
+      "paragraph_accuracy": 0.6927,
+      "document_accuracy": 0.873,
+      "by_length": {
+        "30 words": {
+          "chunks": 24623,
+          "accuracy": 0.6023
+        },
+        "50 words": {
+          "chunks": 14419,
+          "accuracy": 0.7008
+        },
+        "80 words": {
+          "chunks": 8700,
+          "accuracy": 0.7882
+        },
+        "120 words": {
+          "chunks": 5530,
+          "accuracy": 0.8246
+        },
+        "200 words": {
+          "chunks": 2930,
+          "accuracy": 0.8795
+        }
+      }
+    },
+    "XGBoost_TFIDF": {
+      "paragraph_accuracy": 0.6327,
+      "document_accuracy": 0.8642,
+      "by_length": {
+        "30 words": {
+          "chunks": 24623,
+          "accuracy": 0.5675
+        },
+        "50 words": {
+          "chunks": 14419,
+          "accuracy": 0.6174
+        },
+        "80 words": {
+          "chunks": 8700,
+          "accuracy": 0.6932
+        },
+        "120 words": {
+          "chunks": 5530,
+          "accuracy": 0.7595
+        },
+        "200 words": {
+          "chunks": 2930,
+          "accuracy": 0.8369
+        }
+      }
+    }
+  },
+  "by_length": {
+    "30 words": {
+      "chunks": 24623,
+      "accuracy": 0.7938
+    },
+    "50 words": {
+      "chunks": 14419,
+      "accuracy": 0.8446
+    },
+    "80 words": {
+      "chunks": 8700,
+      "accuracy": 0.8874
+    },
+    "120 words": {
+      "chunks": 5530,
+      "accuracy": 0.9195
+    },
+    "200 words": {
+      "chunks": 2930,
+      "accuracy": 0.9512
+    }
+  },
+  "paragraph_accuracy": 0.8419,
+  "document_accuracy": 0.9479
+}

@@ -2,14 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle, Brain, CheckCircle2, ChevronDown, ChevronUp, Clock,
-  FileText, History, Microscope, RotateCcw, Send, Sparkles, X, Zap,
+  FileText, History, Microscope, Newspaper, RotateCcw, Send, Sparkles, Upload, X, Zap,
 } from 'lucide-react'
 import api, { getApiErrorMessage } from '@services/api'
-import { predict } from '@services/predictService'
+import { extractDocument, predict, publishPrediction } from '@services/predictService'
+import type { DocumentExtract } from '@services/predictService'
 import { useToast } from '../contexts/ToastContext'
 import { useTheme } from '../contexts/ThemeContext'
 import type { PredictResponse } from '@/types/prediction'
-import { getCategoryGroup } from '../utils/modelGroup'
+import { getCategoryGroup, getExpVariant, experimentLabel, experimentTitle, ALL_EXPERIMENTS } from '../utils/modelGroup'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 /* ── Types ──────────────────────────────────────────────────────────────────── */
 type HighlightTone = 'ai' | 'human'
@@ -27,27 +29,17 @@ interface HistoryEntry {
 }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
-const EXP_LABELS: Record<string, string> = {
-  experiment_1_stopwords_included: 'Experiment 1 — Stopwords Included',
-  experiment_2_stopwords_removed:  'Experiment 2 — Stopwords Removed',
-}
-const MAX_CHARS = 5000
+// There is no upper bound on input length: a user may paste a whole report or upload
+// a long document, and truncating it silently would classify something other than what
+// they submitted. Only the minimum below is enforced.
+const MIN_CHARS = 50
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 const fmtPct  = (v: number) => `${Math.round(v * 100)}%`
 const fmtMet  = (v: number, s = '') => Number.isFinite(v) ? `${v.toFixed(v >= 10 ? 2 : 3)}${s}` : 'N/A'
+
 const normWord = (v: string) => v.toLowerCase().replace(/[^a-z0-9_-]/g, '')
 const fmtTime  = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-const getExpVariant = (m: ModelData): string => {
-  const raw = (m.experiment ?? '').toLowerCase()
-  for (const [k, v] of Object.entries(EXP_LABELS)) if (raw.includes(k)) return v
-  const n = (m.experimentName ?? '').toLowerCase()
-  if (n.includes('included')) return EXP_LABELS['experiment_1_stopwords_included']
-  if (n.includes('removed'))  return EXP_LABELS['experiment_2_stopwords_removed']
-  if (m.experimentName && m.experimentName !== 'Unassigned') return m.experimentName
-  return 'All Models'
-}
 
 const buildProbs = (r: PredictResponse) => {
   let ai = 0, hu = 0
@@ -152,8 +144,17 @@ export default function Predict() {
   const [limeInlineLoading, setLimeInlineLoading] = useState(false)
   const [limeInlineH, setLimeInlineH]     = useState(560)
   const [limeInlineError, setLimeInlineError] = useState<string | null>(null)
+  const [uploading, setUploading]         = useState(false)
+  const [uploadError, setUploadError]     = useState<string | null>(null)
+  const [uploaded, setUploaded]           = useState<DocumentExtract | null>(null)
+  const [dragging, setDragging]           = useState(false)
+  const fileInputRef                      = useRef<HTMLInputElement>(null)
   const [samples, setSamples]             = useState<{ label: string; type: string; text: string }[]>([])
   const [samplesOpen, setSamplesOpen]     = useState(false)
+  const [publishTitle, setPublishTitle]   = useState('')
+  const [publishing, setPublishing]       = useState(false)
+  const [published, setPublished]         = useState(false)
+  const [confirmPublishOpen, setConfirmPublishOpen] = useState(false)
   const resultRef     = useRef<HTMLDivElement>(null)
   const limeBlob      = useRef<string | null>(null)
   const limeInlineBlob = useRef<string | null>(null)
@@ -173,13 +174,11 @@ export default function Predict() {
 
   useEffect(() => {
     api.get<ModelData[]>('/models').then(res => {
-      // Only show models with accuracy >= 80%
+      // Only show models that are actually deployed/loaded and usable for live inference
       const raw = (Array.isArray(res.data) ? res.data : []) as ModelData[]
-      // Show all models ≥80% accuracy; unavailable ones show performance-only panel
-      const all = raw.filter(m => m.accuracy >= 80)
+      const all = raw.filter(m => m.status === 'active')
       setModels(all)
-      const firstActive = all.find(m => m.status === 'active') ?? all[0]
-      if (firstActive) { setSelectedCat('All Experiments'); setSelectedModel(firstActive.id) }
+      if (all[0]) { setSelectedCat('All Experiments'); setSelectedModel(all[0].id) }
     }).catch(e => setError(getApiErrorMessage(e))).finally(() => setModelsLoading(false))
   }, [])
 
@@ -203,16 +202,52 @@ export default function Predict() {
     return Array.from(s).sort()
   }, [models])
 
-  const ALL_EXPERIMENTS = 'All Experiments'
   const catModels = useMemo(() =>
     selectedCat === ALL_EXPERIMENTS ? models : models.filter(m => getExpVariant(m) === selectedCat),
     [models, selectedCat])
   const selModel      = models.find(m => m.id === selectedModel)
   const selAvailable  = selModel?.status === 'active'
+  // Backend already returns models sorted by accuracy desc, so models[0] is the top performer.
+  const mostReliableModel = models[0]
   const probs     = useMemo(() => result ? buildProbs(result) : { AI: 0, HUMAN: 0 }, [result])
   const tokens    = useMemo(() => result ? buildTokens(text.trim(), result.label) : [], [result, text])
   const winConf   = result ? (result.label === 'AI' ? probs.AI : probs.HUMAN) : 0
-  const charPct   = Math.round((text.length / MAX_CHARS) * 100)
+  // Progress toward a soft reference point, purely so the bar has something to
+  // show; nothing is refused at 100%.
+  const charPct   = Math.min(Math.round((text.length / 50000) * 100), 100)
+
+  // Word and PDF only. The extension is checked here so an obviously wrong file is
+  // refused without a round trip; the server checks the file's actual signature, which
+  // is the check that matters, because an extension is only what the uploader typed.
+  const ACCEPTED = ['.docx', '.pdf']
+
+  const onFile = async (file: File | null) => {
+    if (!file) return
+    setUploadError(null)
+    const suffix = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    if (!ACCEPTED.includes(suffix)) {
+      setUploadError(
+        suffix === '.doc'
+          ? 'The old .doc format cannot be read. Save it as .docx in Word and try again.'
+          : `Only Word (.docx) and PDF (.pdf) files are accepted — ${suffix || 'that file'} is not.`,
+      )
+      return
+    }
+    setUploading(true)
+    setUploaded(null)
+    try {
+      const res = await extractDocument(file)
+      setUploaded(res.data)
+      setText(res.data.text)
+      setResult(null)
+      setError(null)
+    } catch (e) {
+      setUploadError(getApiErrorMessage(e, 'That file could not be read.'))
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const onCatChange = (cat: string) => {
     setSelectedCat(cat)
@@ -222,8 +257,9 @@ export default function Predict() {
   }
 
   const onSubmit = async () => {
-    if (!text.trim() || !selectedModel) return
+    if (text.trim().length < MIN_CHARS || !selectedModel) return
     setLoading(true); setError(null); setResult(null); setLimeInlineUrl(null); setLimeInlineError(null)
+    setPublished(false); setPublishTitle('')
     const t0 = Date.now(); setStartMs(t0)
     try {
       const res = await predict({ text, model: selectedModel })
@@ -253,6 +289,21 @@ export default function Predict() {
       const msg = getApiErrorMessage(e, 'Failed to make prediction.')
       setError(msg); showToast(msg, 'error')
     } finally { setLoading(false) }
+  }
+
+  const onPublish = async () => {
+    if (!result?.predictionId || publishing || published) return
+    setPublishing(true)
+    try {
+      await publishPrediction(result.predictionId, publishTitle.trim())
+      setPublished(true)
+      setConfirmPublishOpen(false)
+      showToast('Published to News Feed.', 'success')
+    } catch (e) {
+      showToast(getApiErrorMessage(e, 'Failed to publish.'), 'error')
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const fetchInlineLime = async (inputText: string, experiment: string) => {
@@ -376,7 +427,11 @@ export default function Predict() {
                   ? <option>No experiments</option>
                   : <>
                       <option value="All Experiments">All Experiments ({models.length} models)</option>
-                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      {categories.map(c => (
+                        <option key={c} value={c}>
+                          {experimentTitle(c)} — {models.filter(m => getExpVariant(m) === c).length} models
+                        </option>
+                      ))}
                     </>
                 }
               </select>
@@ -400,23 +455,37 @@ export default function Predict() {
                   ? <option>No models</option>
                   : catModels.map(m => (
                       <option key={m.id} value={m.id}>
-                        {m.name}{m.status !== 'active' ? ' — [No file]' : ''}
+                        {m.id === mostReliableModel?.id ? '⭐ ' : ''}{m.name}{m.status !== 'active' ? ' — [No file]' : ''}
                       </option>
                     ))
                 }
               </select>
               <ChevronDown size={15} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
             </div>
+            {mostReliableModel && selModel?.id !== mostReliableModel.id && (
+              <button
+                type="button"
+                onClick={() => { setSelectedModel(mostReliableModel.id); setResult(null) }}
+                className="text-left text-[11px] font-semibold text-primary-600 hover:underline dark:text-primary-400"
+              >
+                ⭐ {mostReliableModel.name} ({fmtMet(mostReliableModel.accuracy, '%')}) waa model-ka ugu kalsoonida badan — dooro
+              </button>
+            )}
           </div>
         </div>
 
         {/* Stats row */}
         {selModel && (
-          <div className="mx-6 mb-5 grid grid-cols-3 gap-2 rounded-xl border border-neutral-100 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-800/30">
+          <div className="mx-6 mb-5 grid grid-cols-2 gap-2 rounded-xl border border-neutral-100 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-800/30 sm:grid-cols-4">
             {[
               { l: 'Type',      v: getCategoryGroup(selModel.type) },
               { l: 'Accuracy',  v: fmtMet(selModel.accuracy, '%') },
               { l: 'F1 Score',  v: fmtMet(selModel.f1) },
+              // Which of the two training runs produced this model. Both experiments
+              // ship models with near-identical names, so without this the reader
+              // cannot tell whether the figures above come from the stopwords-included
+              // run or the stopwords-removed one.
+              { l: 'Experiment', v: experimentLabel(selModel) },
             ].map(({ l, v }) => (
               <div key={l}>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{l}</p>
@@ -523,13 +592,80 @@ export default function Predict() {
           <span className={`text-[11px] font-semibold tabular-nums transition-colors ${
             charPct > 90 ? 'text-red-500' : charPct > 70 ? 'text-amber-500' : 'text-neutral-400 dark:text-neutral-500'
           }`}>
-            {text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+            {text.length.toLocaleString()} characters · {text.trim() ? text.trim().split(/\s+/).length.toLocaleString() : 0} words
           </span>
+        </div>
+
+        {/* Upload. Offered beside the textarea rather than on its own page: a document
+            and a pasted passage are the same input to the classifier, and the extracted
+            text lands in the box below so it can be read before it is classified. */}
+        <div className="border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={e => { e.preventDefault(); setDragging(false); onFile(e.dataTransfer.files?.[0] ?? null) }}
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            className={`flex cursor-pointer flex-wrap items-center justify-center gap-3 rounded-xl border-2 border-dashed px-5 py-4 text-center transition-colors ${
+              dragging
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10'
+                : 'border-neutral-200 bg-neutral-50/60 hover:border-primary-400 hover:bg-primary-50/40 dark:border-neutral-700 dark:bg-neutral-800/30 dark:hover:bg-primary-500/5'
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={e => onFile(e.target.files?.[0] ?? null)}
+            />
+            {uploading ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-500/30 border-t-primary-500" />
+                <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-300">Reading document…</span>
+              </>
+            ) : (
+              <>
+                <Upload size={16} className="text-primary-600 dark:text-primary-400" />
+                <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+                  Upload a document
+                </span>
+                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                  drag it here or click to browse — Word (.docx) and PDF only
+                </span>
+              </>
+            )}
+          </div>
+
+          {uploaded && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 dark:border-emerald-800/40 dark:bg-emerald-950/30">
+              <FileText size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span className="truncate text-xs font-bold text-emerald-900 dark:text-emerald-200">{uploaded.filename}</span>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                {uploaded.file_type}
+              </span>
+              <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                {uploaded.word_count.toLocaleString()} words · {uploaded.paragraph_count} paragraphs · Somali confirmed
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); setUploaded(null); setText(''); setResult(null) }}
+                className="ml-auto rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-500/15"
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          {uploadError && (
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 dark:border-red-800/40 dark:bg-red-950/30">
+              <AlertCircle size={14} className="mt-0.5 shrink-0 text-red-500" />
+              <p className="text-xs font-semibold leading-relaxed text-red-700 dark:text-red-300">{uploadError}</p>
+            </div>
+          )}
         </div>
 
         <textarea
           value={text}
-          onChange={e => { setText(e.target.value.slice(0, MAX_CHARS)); setLimeInlineUrl(null); setLimeInlineError(null) }}
+          onChange={e => { setText(e.target.value); setUploaded(null); setLimeInlineUrl(null); setLimeInlineError(null) }}
           placeholder="Ku qor ama halkan ku dheji qoraalka af-Soomaaliga ah…"
           className="textarea-premium w-full min-h-[200px] resize-y border-0 bg-transparent px-6 py-5 text-[15px] leading-8 text-neutral-900 placeholder-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder-neutral-600"
         />
@@ -539,16 +675,20 @@ export default function Predict() {
           <motion.div
             animate={{ width: `${charPct}%` }}
             transition={{ duration: 0.15 }}
-            className={`h-full transition-colors duration-300 ${
-              charPct > 90 ? 'bg-red-500' : charPct > 70 ? 'bg-amber-400' : 'bg-primary-500'
-            }`}
+            className="h-full bg-primary-500 transition-colors duration-300"
           />
         </div>
+
+        {text.trim().length > 0 && text.trim().length < MIN_CHARS && (
+          <p className="px-6 pt-2 text-[11px] font-semibold text-amber-500">
+            Fadlan geli ugu yaraan hal paragraph ({MIN_CHARS}+ xaraf) si model-ku u helo macluumaad ku filan.
+          </p>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-3 px-6 py-4">
           <button
-            onClick={() => { setText(''); setResult(null); setError(null) }}
+            onClick={() => { setText(''); setResult(null); setError(null); setUploaded(null); setUploadError(null) }}
             disabled={!text && !result}
             className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-neutral-800"
           >
@@ -557,7 +697,7 @@ export default function Predict() {
 
           <button
             onClick={onSubmit}
-            disabled={!text.trim() || !selectedModel || loading || modelsLoading || !selAvailable}
+            disabled={text.trim().length < MIN_CHARS || !selectedModel || loading || modelsLoading || !selAvailable}
             className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none active:translate-y-0 ${
               selAvailable
                 ? 'bg-primary-600 shadow-primary-500/25 hover:bg-primary-700 hover:shadow-primary-500/35'
@@ -577,7 +717,7 @@ export default function Predict() {
             ) : (
               <>
                 <Send size={15} />
-                Analyze Text
+                Generate Text  
               </>
             )}
           </button>
@@ -647,10 +787,10 @@ export default function Predict() {
                     </p>
                     {result.category && result.category !== 'Unknown' && (
                       <div className="mt-3">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 text-sm font-bold text-white backdrop-blur-sm">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-bold text-slate-900 shadow-lg shadow-black/15 ring-1 ring-black/5">
                           <span className="text-base leading-none">{result.category_icon}</span>
                           <span>{result.category}</span>
-                          <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Topic</span>
+                          <span className="border-l border-slate-300 pl-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Topic</span>
                         </span>
                       </div>
                     )}
@@ -669,18 +809,58 @@ export default function Predict() {
                     { icon: <Clock size={12} />, label: `${elapsed}ms` },
                     { icon: <CheckCircle2 size={12} />, label: fmtPct(winConf) + ' confidence' },
                   ].map(({ icon, label }) => (
-                    <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+                    <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white">
                       {icon} {label}
                     </span>
                   ))}
                   {result.category && result.category !== 'Unknown' && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white">
                       <span>{result.category_icon}</span> {result.category}
                     </span>
                   )}
                   <span className="ml-auto text-[11px] font-semibold text-white/50">
                     {fmtTime(startMs)}
                   </span>
+                </div>
+
+                {/* Reliability context */}
+                {selModel && (
+                  <p className="relative mt-4 text-[11px] leading-relaxed text-white/80">
+                    {selModel.id === mostReliableModel?.id
+                      ? `⭐ ${selModel.name} waa model-ka ugu sax badan (${fmtMet(selModel.accuracy, '%')} test accuracy) ee la heli karo.`
+                      : `${selModel.name} wuxuu leeyahay ${fmtMet(selModel.accuracy, '%')} test accuracy — ${mostReliableModel ? `${mostReliableModel.name} (${fmtMet(mostReliableModel.accuracy, '%')}) ayaa ka sax badan.` : ''}`}
+                    {' '}Natiijadan waa saadaal tirakoob ku salaysan, ma aha xaqiiq 100% ah — {fmtPct(winConf)} kalsooni ma macnaheedu aha in ay had iyo jeer sax tahay.
+                  </p>
+                )}
+
+                {/* Publish to News Feed */}
+                <div className="relative mt-5 border-t border-white/15 pt-5">
+                  {published ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-white">
+                      <CheckCircle2 size={16} /> Published to News Feed
+                      <a href="/news" className="ml-1 rounded-full bg-white/15 px-3 py-1 text-xs font-bold underline-offset-2 hover:underline">
+                        View in feed →
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input
+                        value={publishTitle}
+                        onChange={e => setPublishTitle(e.target.value.slice(0, 120))}
+                        placeholder="Optional title for your post…"
+                        className="h-10 flex-1 rounded-xl border border-white/20 bg-white/10 px-3.5 text-sm font-semibold text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
+                      />
+                      <button
+                        onClick={() => setConfirmPublishOpen(true)}
+                        disabled={publishing || !result.predictionId}
+                        className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-neutral-900 shadow transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {publishing
+                          ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" /> Publishing…</>
+                          : <><Newspaper size={15} /> Publish to News Feed</>}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -935,7 +1115,7 @@ export default function Predict() {
               <p className="font-bold text-neutral-700 dark:text-neutral-300">Results appear here</p>
               <p className="mt-1 max-w-xs text-sm text-neutral-400 dark:text-neutral-500">
                 Enter Somali text above and click{' '}
-                <span className="font-semibold text-primary-600 dark:text-primary-400">Analyze Text</span>{' '}
+                <span className="font-semibold text-primary-600 dark:text-primary-900">Generate Text </span>{' '}
                 to see the classification output.
               </p>
             </div>
@@ -1024,6 +1204,28 @@ export default function Predict() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Confirm publish ───────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={confirmPublishOpen}
+        tone="primary"
+        title="Publish this result to the News Feed?"
+        confirmLabel="Yes, publish"
+        cancelLabel="Not yet"
+        busy={publishing}
+        onCancel={() => setConfirmPublishOpen(false)}
+        onConfirm={onPublish}
+        message={
+          <>
+            Your analysed text, the <strong>{result?.label === 'AI' ? 'AI Generated' : 'Human Written'}</strong> verdict
+            and the model you used will be visible to everyone on the News Feed, published under your name.
+            {publishTitle.trim()
+              ? <> It will appear with the title “<strong>{publishTitle.trim()}</strong>”.</>
+              : <> No title was entered, so a title will be generated from your text.</>}
+            {' '}You can remove it from the feed at any time.
+          </>
+        }
+      />
 
     </div>
   )

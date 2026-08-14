@@ -2,8 +2,8 @@ project:
   name: somali-nlp-research
   seed: 42
 paths:
-  data_raw: data/raw/full_dataset.csv
-  data_labeled: data/raw/labeled_text.xlsx
+  data_raw: data/raw/full_dataset.xlsx
+  data_labeled: data/raw/labeled text.xlsx
   experiments_dir: experiments
   experiment_1_dir: experiments/experiment_1_stopwords_included
   experiment_2_dir: experiments/experiment_2_stopwords_removed
@@ -21,8 +21,8 @@ paths:
   xai_outputs_dir: experiments\experiment_1_stopwords_included\xai\outputs
   results_dir: experiments\experiment_1_stopwords_included\results
 data:
-  dataset_labeled: data/raw/labeled_text.xlsx
-  supplemental_raw: data/raw/full_dataset.csv
+  dataset_labeled: data/raw/labeled_text_balanced.xlsx
+  supplemental_raw: data/raw/full_dataset.xlsx
   text_column: Text
   label_column: Label
   train_file: clean_train.csv

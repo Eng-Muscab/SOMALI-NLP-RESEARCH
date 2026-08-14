@@ -88,7 +88,7 @@ export default function XAI() {
     api.get<ArrayBuffer>(`/experiments/xai/shap-plot/${exp}`, { responseType: 'arraybuffer' })
       .then(r => {
         if (cancelled) return
-        const blob = new Blob([r.data], { type: 'image/png' })
+        const blob = new Blob([r.data], { type: 'image/svg+xml' })
         const url  = URL.createObjectURL(blob)
         if (prevPlot.current) URL.revokeObjectURL(prevPlot.current)
         prevPlot.current = url

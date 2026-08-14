@@ -17,7 +17,7 @@ def main() -> int:
     root = find_project_root(Path.cwd())
     experiments_dir = root / "experiments"
     comparison_path = experiments_dir / "stopword_ablation_comparison.csv"
-    out_path = experiments_dir / "stopword_ablation_f1_comparison.png"
+    out_path = experiments_dir / "stopword_ablation_f1_comparison.svg"
 
     df = pd.read_csv(comparison_path)
     df["experiment_label"] = df["experiment"].map(

@@ -65,7 +65,7 @@ def delete_old_outputs(exp_dir: Path) -> None:
         exp_dir / "xai" / "outputs" / "lime",
         exp_dir / "eda" / "figures",
     ]
-    file_patterns = ["*.png", "*.html"]
+    file_patterns = ["*.svg", "*.html"]
     report_files = [
         exp_dir / "xai" / "outputs" / "shap_like_feature_importance.csv",
         exp_dir / "xai" / "outputs" / "error_analysis_sample.csv",
@@ -120,9 +120,13 @@ def generate_eda_figures(exp_dir: Path) -> None:
     eda_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        # All three splits: omitting clean_val understated every class count by the
+        # size of the validation set, so the chart read 4,839 per class instead of
+        # the corpus total of 5,693 and looked like a different dataset.
         train_df = pd.read_csv(data_dir / "clean_train.csv", keep_default_na=False)
+        val_df   = pd.read_csv(data_dir / "clean_val.csv",   keep_default_na=False)
         test_df  = pd.read_csv(data_dir / "clean_test.csv",  keep_default_na=False)
-        all_df   = pd.concat([train_df, test_df], ignore_index=True)
+        all_df   = pd.concat([train_df, val_df, test_df], ignore_index=True)
         all_df["Text"] = all_df["Text"].fillna("").astype(str).str.strip()
         all_df = all_df[all_df["Text"].str.len() > 0]
 
@@ -132,10 +136,10 @@ def generate_eda_figures(exp_dir: Path) -> None:
         ax1 = counts.plot(kind="bar", color=["#4C72B0", "#DD8452"], edgecolor="black")
         ax1.bar_label(ax1.containers[0], fmt='%d', padding=4, fontsize=10, fontweight='bold')
         ax1.set_ylim(0, counts.max() * 1.12)
-        plt.title("Class Distribution")
+        plt.title(f"Class Distribution (n = {len(all_df):,})")
         plt.xlabel("Label"); plt.ylabel("Count")
         plt.xticks(rotation=0); plt.tight_layout()
-        plt.savefig(eda_dir / "class_distribution.png", dpi=180)
+        plt.savefig(eda_dir / "class_distribution.svg", dpi=180)
         plt.close()
 
         # 2. Sentence length histogram
@@ -147,7 +151,7 @@ def generate_eda_figures(exp_dir: Path) -> None:
         plt.title("Sentence Length Distribution (words)")
         plt.xlabel("Word Count"); plt.ylabel("Frequency")
         plt.legend(); plt.tight_layout()
-        plt.savefig(eda_dir / "sentence_length_hist.png", dpi=180)
+        plt.savefig(eda_dir / "sentence_length_hist.svg", dpi=180)
         plt.close()
 
         # 3. Top-20 words
@@ -163,14 +167,21 @@ def generate_eda_figures(exp_dir: Path) -> None:
         ax3.set_xlim(0, max(freqs) * 1.12)
         ax3.set_title("Top 20 Most Frequent Words")
         ax3.set_xlabel("Frequency"); plt.tight_layout()
-        plt.savefig(eda_dir / "top20_words.png", dpi=180)
+        plt.savefig(eda_dir / "top20_words.svg", dpi=180)
         plt.close()
 
-        # 4. AI type distribution (from full_dataset.csv)
-        fd_path = ROOT / "data" / "raw" / "full_dataset.csv"
+        # 4. AI type distribution (from full_dataset.xlsx/csv)
+        fd_path = ROOT / "data" / "raw" / "full_dataset.xlsx"
+        if not fd_path.exists():
+            fd_path = ROOT / "data" / "raw" / "full_dataset.csv"
         if fd_path.exists():
             import re as _re
-            fd = pd.read_csv(str(fd_path), keep_default_na=False)
+            if fd_path.suffix.lower() in {".xlsx", ".xlsm"}:
+                from experiments.run_balanced_experiments import load_table, normalize_category
+                fd = load_table(fd_path).fillna("")
+            else:
+                fd = pd.read_csv(str(fd_path), keep_default_na=False)
+                from experiments.run_balanced_experiments import normalize_category
             if "Ai Type" in fd.columns:
                 def _norm(v):
                     t = _re.sub(r"[^a-z]","", str(v).lower())
@@ -180,7 +191,8 @@ def generate_eda_figures(exp_dir: Path) -> None:
                     return None
                 fd["ai_norm"] = fd["Ai Type"].apply(_norm)
                 if "Category" in fd.columns:
-                    fd["Category"] = fd["Category"].astype(str).str.strip().str.title()
+                    fd["Category"] = fd["Category"].map(normalize_category)
+                    fd = fd[fd["Category"].ne("Unknown")]
                 fd_valid = fd[fd["ai_norm"].notna()]
 
                 # AI type distribution pie
@@ -190,7 +202,7 @@ def generate_eda_figures(exp_dir: Path) -> None:
                         colors=["#4C72B0","#DD8452","#55A868"], startangle=90)
                 plt.title("AI Type Distribution")
                 plt.tight_layout()
-                plt.savefig(eda_dir / "ai_type_distribution.png", dpi=180)
+                plt.savefig(eda_dir / "ai_type_distribution.svg", dpi=180)
                 plt.close()
 
                 # Category distribution (bar)
@@ -204,7 +216,7 @@ def generate_eda_figures(exp_dir: Path) -> None:
                     plt.title("AI-Generated Articles by Category")
                     plt.xlabel("Category"); plt.ylabel("Count")
                     plt.xticks(rotation=45, ha="right"); plt.tight_layout()
-                    plt.savefig(eda_dir / "ai_generated_category_distribution.png", dpi=180)
+                    plt.savefig(eda_dir / "ai_generated_category_distribution.svg", dpi=180)
                     plt.close()
 
                     # AI type by category (stacked bar)
@@ -222,7 +234,7 @@ def generate_eda_figures(exp_dir: Path) -> None:
                         plt.xlabel("Category"); plt.ylabel("Count")
                         plt.xticks(rotation=45, ha="right")
                         plt.legend(title="AI Type"); plt.tight_layout()
-                        plt.savefig(eda_dir / "ai_type_by_category.png", dpi=180)
+                        plt.savefig(eda_dir / "ai_type_by_category.svg", dpi=180)
                         plt.close()
 
         print(f"  [OK] EDA figures saved to {eda_dir}")
@@ -266,7 +278,7 @@ def generate_traditional_ml_outputs(exp_dir: Path) -> None:
 
             # Confusion matrix
             save_confusion_matrix(
-                figures_dir / f"confusion_matrix_{name}.png",
+                figures_dir / f"confusion_matrix_{name}.svg",
                 y_test, y_pred, LABEL_NAMES,
                 f"{exp_dir.name}: {name}",
             )
@@ -340,7 +352,7 @@ def _generate_xai(exp_dir: Path, model, model_path: Path,
         shap.summary_plot(shap_vals, x_dense[:50], feature_names=feat_names,
                           show=False, max_display=20)
         plt.tight_layout()
-        plt.savefig(shap_dir / "shap_summary_plot.png", dpi=180, bbox_inches="tight")
+        plt.savefig(shap_dir / "shap_summary_plot.svg", dpi=180, bbox_inches="tight")
         plt.close()
         print("  [OK] SHAP outputs generated.")
     except Exception as exc:
@@ -475,7 +487,7 @@ def generate_keras_outputs(exp_dir: Path) -> None:
             probs  = model.predict(padded, verbose=0)
             y_pred = np.argmax(probs, axis=1)
             save_confusion_matrix(
-                figures_dir / f"confusion_matrix_{model_name}.png",
+                figures_dir / f"confusion_matrix_{model_name}.svg",
                 y_test, y_pred, LABEL_NAMES,
                 f"{exp_dir.name}: {model_name}",
             )
@@ -554,7 +566,7 @@ def train_traditional(exp_dir: Path, seed: int, force: bool) -> None:
         df.drop(df[df["Text"].str.len() == 0].index, inplace=True)
 
     train_fit_df = pd.concat([train_df, val_df], ignore_index=True)
-    final_fit_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
+    final_fit_df = train_fit_df
 
     x_test  = test_df["Text"].astype(str).tolist()
     y_test  = test_df["Label"].map(LABEL2ID).to_numpy(dtype=int)
@@ -565,17 +577,17 @@ def train_traditional(exp_dir: Path, seed: int, force: bool) -> None:
 
     tfidf_union = FeatureUnion([
         ("word", TfidfVectorizer(analyzer="word", ngram_range=(1, 2),
-                                 max_features=12000, sublinear_tf=True)),
-        ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5),
-                                 max_features=12000, sublinear_tf=True)),
+                                 max_features=20000, sublinear_tf=True, min_df=2)),
+        ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 6),
+                                 max_features=20000, sublinear_tf=True, min_df=2)),
     ])
 
     specs = {
         "LinearSVC_TFIDF": Pipeline([("tfidf", tfidf_union),
-                                     ("clf", LinearSVC(C=1.0, class_weight="balanced",
+                                     ("clf", LinearSVC(C=2.0, class_weight="balanced",
                                                        max_iter=2000))]),
         "LogisticRegression_TFIDF": Pipeline([("tfidf", tfidf_union),
-                                              ("clf", LogisticRegression(C=1.0,
+                                              ("clf", LogisticRegression(C=2.0,
                                                                          class_weight="balanced",
                                                                          max_iter=2000,
                                                                          solver="lbfgs"))]),
@@ -606,12 +618,11 @@ def train_traditional(exp_dir: Path, seed: int, force: bool) -> None:
         y_pred = pipe.predict(x_test)
         acc  = accuracy_score(y_test, y_pred)
         f1   = f1_score(y_test, y_pred, average="weighted")
-        # Final fit on all data before saving
+        report = classification_report(y_test, y_pred, target_names=LABEL_NAMES)
+        # Save model trained only on train+validation; never fit on held-out test data.
         pipe.fit(x_final, y_final)
         out_path = model_dir / f"{name}.joblib"
         joblib.dump(pipe, out_path)
-        report = classification_report(y_test, pipe.predict(x_test),
-                                       target_names=LABEL_NAMES)
         (reports_dir / f"classification_report_{name}.txt").write_text(report,
                                                                         encoding="utf-8")
         elapsed = time.time() - t0

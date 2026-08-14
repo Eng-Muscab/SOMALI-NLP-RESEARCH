@@ -36,7 +36,7 @@ cd C:\Users\HP\Desktop\final-year\SOMALI-NLP-RESEARCH\web\backend
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 cd ..
-.\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8001 --reload
+.\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ### Option B — One-command start
@@ -47,7 +47,7 @@ cd C:\Users\HP\Desktop\final-year\SOMALI-NLP-RESEARCH\web
 ```
 
 Expected backend URL:
-- http://127.0.0.1:8001/docs
+- http://127.0.0.1:8000/docs
 
 ---
 
@@ -84,7 +84,7 @@ You can also register a new user from the Sign Up page if needed.
 ### Backend health
 
 Open:
-- http://127.0.0.1:8001/docs
+- http://127.0.0.1:8000/docs
 
 ### Frontend
 
@@ -121,7 +121,7 @@ npm install
 
 ### Login still fails
 
-- Make sure the backend is running on port 8001.
+- Make sure the backend is running on port 8000.
 - Make sure MongoDB is reachable at mongodb://localhost:27017.
 - Restart the backend once after MongoDB starts.
 
@@ -130,7 +130,7 @@ npm install
 ## 8) Summary
 
 1. Start MongoDB
-2. Start backend on port 8001
+2. Start backend on port 8000
 3. Start frontend on port 5173
 4. Open http://localhost:5173/
 5. Sign in with:

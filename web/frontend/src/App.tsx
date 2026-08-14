@@ -15,6 +15,8 @@ import LandingPage from './pages/public/LandingPage'
 // Lazily loaded (code-split)
 const Dashboard     = lazy(() => import('./pages/Dashboard'))
 const Predict       = lazy(() => import('./pages/Predict'))
+const LinkAnalysis  = lazy(() => import('./pages/LinkAnalysis'))
+const NewsFeed      = lazy(() => import('./pages/NewsFeed'))
 const Models        = lazy(() => import('./pages/Models'))
 const Experiments   = lazy(() => import('./pages/Experiments'))
 const Analytics     = lazy(() => import('./pages/Analytics'))
@@ -51,6 +53,8 @@ export default function App() {
             >
               <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
               <Route path="predict"   element={<Suspense fallback={<PageLoader />}><Predict /></Suspense>} />
+              <Route path="link"      element={<Suspense fallback={<PageLoader />}><LinkAnalysis /></Suspense>} />
+              <Route path="news"      element={<Suspense fallback={<PageLoader />}><NewsFeed /></Suspense>} />
               <Route path="models"    element={<Suspense fallback={<PageLoader />}><Models /></Suspense>} />
               <Route path="experiments" element={<Suspense fallback={<PageLoader />}><Experiments /></Suspense>} />
               <Route path="analytics"   element={<Suspense fallback={<PageLoader />}><Analytics /></Suspense>} />

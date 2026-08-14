@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.errors import PyMongoError
 
 from ..schemas.user import Token, UserCreate, UserLogin, UserOut
-from ..services.auth_service import authenticate_user, register_user
+from ..services.auth_service import AuthenticationError, authenticate_user, register_user
 from ..utils.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,12 @@ async def register(user: UserCreate):
 async def login(user: UserLogin):
     try:
         token = await authenticate_user(user.email, user.password)
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
     except (RuntimeError, PyMongoError) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -50,12 +56,6 @@ async def login(user: UserLogin):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Check server logs.",
         ) from exc
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
     return token
 
 

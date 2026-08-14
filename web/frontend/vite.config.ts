@@ -18,8 +18,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // Overridable so the dev server can be pointed at a backend on another port
+      // without editing this file -- useful when 8000 is held by a stale listener.
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       },
     },

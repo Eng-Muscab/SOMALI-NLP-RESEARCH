@@ -2,11 +2,11 @@
 
 This project is based on the labeled binary dataset in:
 
-- `data/raw/labeled_text.xlsx`
+- `data/raw/labeled text.xlsx`
 
 The active task is **AI vs HUMAN Somali text classification**. The larger
-`data/raw/full_dataset.csv` is kept as supplemental/reference data, but the supervised labels used
-for model training come from `labeled_text.xlsx`.
+`data/raw/full_dataset.xlsx` is kept as supplemental/reference data for EDA/category analytics, but
+the supervised labels used for model training come from `labeled text.xlsx`.
 
 ## Experiments
 
@@ -71,18 +71,18 @@ After cleaning, conflict removal, and duplicate removal:
 
 | Label | Rows |
 |---|---:|
-| AI | 2985 |
-| HUMAN | 2884 |
-| Total | 5869 |
+| AI | 5693 |
+| HUMAN | 5693 |
+| Total | 11386 |
 
 Split layout per experiment:
 
 | Split | Rows |
 |---|---:|
-| Train | 4109 |
-| Validation | 881 |
-| Test | 879 |
-| Full final training set | 5869 |
+| Train | 7970 |
+| Validation | 1708 |
+| Test | 1708 |
+| Full final training set | 11386 |
 
 Metrics and confusion matrices are computed on the held-out test split. The saved `.joblib` model
 artifacts are then refit on the full dataset (`train + validation + test`) so final models use all
@@ -93,20 +93,12 @@ available labeled rows.
 Run the complete default experiment pipeline:
 
 ```powershell
-.\.venv\Scripts\python.exe experiments\run_balanced_experiments.py --stage traditional --task label --sampling full
+.\.venv\Scripts\python.exe experiments\run_full_12_steps.py --skip-xlm-r
+.\.venv\Scripts\python.exe experiments\run_completion_pass.py --skip-transformers --skip-tuning --force
 ```
 
-Default models:
-
-- `LogisticRegression_TFIDF`
-- `LinearSVC_TFIDF`
-
-Optional slower models:
-
-```powershell
-.\.venv\Scripts\python.exe experiments\run_balanced_experiments.py --stage traditional --task label --sampling full --include-random-forest
-.\.venv\Scripts\python.exe experiments\run_balanced_experiments.py --stage traditional --task label --sampling full --include-xgboost
-```
+This refreshes preprocessing, EDA, traditional ML, Keras BiLSTM, MiniTransformer, Word2Vec/FastText
+BiLSTM models, evaluation reports, confusion matrices, ROC curves, XAI outputs, and result tables.
 
 ## Current Full 12-Step Results
 
@@ -119,26 +111,63 @@ lightweight transformer, and XLM-R fine-tuning:
 
 | Experiment | Family | Model | Accuracy | F1 |
 |---|---|---|---:|---:|
-| Stopwords included | Traditional ML | LinearSVC_TFIDF | 0.9431 | 0.9431 |
-| Stopwords removed | Traditional ML | LinearSVC_TFIDF | 0.9329 | 0.9329 |
-| Stopwords included | Transformer | MiniTransformer_Keras | 0.9261 | 0.9261 |
-| Stopwords included | Traditional ML | LogisticRegression_TFIDF | 0.9226 | 0.9224 |
-| Stopwords removed | Traditional ML | LogisticRegression_TFIDF | 0.9215 | 0.9213 |
-| Stopwords removed | Deep Learning | BiLSTM_Keras | 0.9124 | 0.9122 |
-| Stopwords included | Deep Learning | BiLSTM_Keras | 0.9067 | 0.9065 |
-| Stopwords included | Traditional ML | RandomForest_TFIDF | 0.9044 | 0.9040 |
-| Stopwords removed | Traditional ML | XGBoost_TFIDF | 0.9022 | 0.9017 |
-| Stopwords removed | Traditional ML | RandomForest_TFIDF | 0.9010 | 0.9006 |
-| Stopwords included | Traditional ML | XGBoost_TFIDF | 0.8976 | 0.8973 |
-| Stopwords removed | Transformer | MiniTransformer_Keras | 0.8862 | 0.8851 |
-| Stopwords included | Transformer | XLMRoberta_FineTuned | 0.7645 | 0.7642 |
-| Stopwords removed | Transformer | XLMRoberta_FineTuned | 0.7418 | 0.7361 |
+| Stopwords included | Traditional ML | LinearSVC_TFIDF | **0.9479** | **0.9479** |
+| Stopwords included | Traditional ML | LogisticRegression_TFIDF | 0.9321 | 0.9320 |
+| Stopwords removed | Traditional ML | LinearSVC_TFIDF | 0.9221 | 0.9221 |
+| Stopwords removed | Traditional ML | LogisticRegression_TFIDF | 0.9016 | 0.9013 |
+| Stopwords included | Transformer | MiniTransformer_Keras | 0.8970 | 0.8964 |
+| Stopwords included | Deep Learning | BiLSTM_Keras | 0.8964 | 0.8963 |
+| Stopwords removed | Transformer | MiniTransformer_Keras | 0.8952 | 0.8951 |
+| Stopwords removed | Deep Learning | BiLSTM_Keras | 0.8870 | 0.8869 |
+| Stopwords included | Deep Learning | BiLSTM_Word2Vec | 0.8788 | 0.8788 |
+| Stopwords included | Traditional ML | RandomForest_TFIDF | 0.8730 | 0.8724 |
+| Stopwords included | Deep Learning | BiLSTM_FastText | 0.8694 | 0.8694 |
+| Stopwords included | Traditional ML | XGBoost_TFIDF | 0.8642 | 0.8634 |
+| Stopwords removed | Traditional ML | RandomForest_TFIDF | 0.8513 | 0.8508 |
+| Stopwords removed | Deep Learning | BiLSTM_FastText | 0.8507 | 0.8497 |
+| Stopwords removed | Deep Learning | BiLSTM_Word2Vec | 0.8501 | 0.8495 |
+| Stopwords removed | Transformer | AfriBERTa_FineTuned | 0.8396 | 0.8394 |
+| Stopwords included | Transformer | SomBERTa_FineTuned | 0.8384 | 0.8379 |
+| Stopwords included | Transformer | AfriBERTa_FineTuned | 0.8361 | 0.8359 |
+| Stopwords removed | Traditional ML | XGBoost_TFIDF | 0.8320 | 0.8300 |
+| Stopwords removed | Transformer | SomBERTa_FineTuned | 0.8308 | 0.8298 |
+| Stopwords removed | Transformer | AfroXLMR_FineTuned | 0.7974 | 0.7968 |
+| Stopwords included | Transformer | AfroXLMR_FineTuned | 0.7652 | 0.7650 |
+| Stopwords included | Transformer | XLMRoberta_FineTuned | 0.7213 | 0.7095 |
+| Stopwords removed | Transformer | XLMRoberta_FineTuned | 0.6979 | 0.6950 |
+| Stopwords removed | Transformer | mBERT_FineTuned | 0.6593 | 0.6508 |
+| Stopwords included | Transformer | mBERT_FineTuned | 0.6440 | 0.6431 |
 
-XLM-R was fine-tuned with CPU-friendly settings: classifier head and final encoder block trainable,
-one epoch, and `max_length=128`.
+Best model: **LinearSVC_TFIDF, stopwords included — 94.79% accuracy, F1 0.948, ROC-AUC 0.990** on
+the held-out 1,708-sample test set. `LinearSVC_TFIDF` tops both experiments.
+
+Keeping Somali stopwords beats removing them for 10 of the 13 benchmarked models — including every traditional-ML model and every BiLSTM variant — under the expanded 483-word list, since it strips common content words in addition to grammatical function words. The 3 weakest fine-tuned transformers (AfroXLMR, mBERT, AfriBERTa) move the other way by 0.4-3.2 points, but all sit well below the champion: trained for a single CPU-budgeted epoch, they never learned to use the function-word signal in the first place.
+
+All numbers above are recomputed from `evaluation/reports/classification_report_*.csv` by
+`experiments/verify_paper_numbers.py`, which also fails if a report and its ROC curve came from
+different fits. Run it to re-audit the paper, README and web app against the artifacts:
+
+```powershell
+.\.venv\Scripts\python.exe -m experiments.verify_paper_numbers
+```
 
 Detailed outputs:
 
 - `experiments/experiment_1_stopwords_included/results/`
 - `experiments/experiment_2_stopwords_removed/results/`
 - `experiments/full_12_step_run_summary.json`
+
+## Key Visualizations & Research Figures
+
+### 1. Dataset Class & Category Distribution
+| Class Distribution (AI vs HUMAN) | Category Distribution (Domains) |
+|---|---|
+| ![Class Distribution](paper/converted_chapter_v_figures/fig5_3_class_distribution.png) | ![Category Distribution](paper/converted_chapter_v_figures/fig5_4_category_distribution.png) |
+
+### 2. Model Performance & Evaluation Curves
+| Best Model (Logistic Regression Confusion Matrix) | Fine-Tuned SomBERTa ROC Curve |
+|---|---|
+| ![Logistic Regression Confusion Matrix](paper/converted_chapter_v_figures/fig5_1_cm_logreg_exp1.png) | ![SomBERTa ROC Curve](paper/converted_chapter_v_figures/fig5_5_roc_curve_somberta.png) |
+
+### 3. Explainable AI (SHAP Feature Importance)
+![SHAP Summary Plot](paper/converted_chapter_v_figures/fig5_6_shap_summary_plot.png)

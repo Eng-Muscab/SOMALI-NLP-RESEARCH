@@ -1,6 +1,8 @@
 export interface PredictPayload {
   text: string
   model?: string
+  title?: string
+  publish?: boolean
 }
 
 export interface PredictProbabilities {
@@ -18,6 +20,7 @@ export interface PredictResponse {
   historySaved?: boolean
   category?: string
   category_icon?: string
+  predictionId?: string
 }
 
 export interface PredictionHistoryItem {

@@ -24,6 +24,8 @@ from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     precision_recall_fscore_support,
+    roc_auc_score,
+    roc_curve,
 )
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import FeatureUnion, Pipeline
@@ -132,7 +134,10 @@ def load_table(path: Path) -> pd.DataFrame:
     if suffix == ".csv":
         return pd.read_csv(path)
     if suffix in {".xlsx", ".xlsm"}:
-        return read_xlsx_first_sheet(path)
+        try:
+            return pd.read_excel(path)
+        except Exception:
+            return read_xlsx_first_sheet(path)
     raise ValueError(f"Unsupported data file type: {path}")
 
 
@@ -151,8 +156,21 @@ def normalize_ai_type(value: object) -> str:
 
 
 def normalize_category(value: object) -> str:
-    text = "" if pd.isna(value) else str(value).strip()
-    return text.title() if text else "Unknown"
+    text = "" if pd.isna(value) else str(value).strip().lower()
+    text = re.sub(r"\s+", " ", text)
+    aliases = {
+        "politics": "Politics",
+        "sports": "Sports",
+        "education": "Education",
+        "business": "Business",
+        "technology": "Technology",
+        "religion": "Religion",
+        "health": "Health",
+        "entertainment": "Entertainment",
+        "entertiment": "Entertainment",
+        "enteritment": "Entertainment",
+    }
+    return aliases.get(text, text.title() if text else "Unknown")
 
 
 def normalize_binary_label(value: object) -> str:
@@ -164,6 +182,34 @@ def normalize_binary_label(value: object) -> str:
     return "Other"
 
 
+def build_supplemental_category_lookup() -> dict[str, str]:
+    """Map cleaned raw/generated article text to normalized category labels."""
+    if PROJECT_ROOT is None:
+        return {}
+    raw_path = PROJECT_ROOT / "data" / "raw" / "full_dataset.xlsx"
+    if not raw_path.exists():
+        raw_path = PROJECT_ROOT / "data" / "raw" / "full_dataset.csv"
+    if not raw_path.exists():
+        return {}
+
+    try:
+        raw = load_table(raw_path).fillna("")
+    except Exception:
+        return {}
+    if "Category" not in raw.columns:
+        return {}
+
+    text_columns = [col for col in ["Text", "Summarize Ai", "Expand Ai"] if col in raw.columns]
+    lookup: dict[str, str] = {}
+    for _, row in raw.iterrows():
+        category = normalize_category(row.get("Category", ""))
+        if category == "Unknown":
+            continue
+        for col in text_columns:
+            text = clean_text(row.get(col, ""))
+            if text:
+                lookup.setdefault(text, category)
+    return lookup
 def build_labeled_dataset(raw_df: pd.DataFrame, seed: int) -> tuple[pd.DataFrame, dict[str, object]]:
     required = {"Text", "Label"}
     missing = sorted(required - set(raw_df.columns))
@@ -186,7 +232,8 @@ def build_labeled_dataset(raw_df: pd.DataFrame, seed: int) -> tuple[pd.DataFrame
     df = df.drop_duplicates(subset=["Text", "Label"], keep="first").reset_index(drop=True)
     duplicate_rows = before_dedupe - len(df)
     df["AiTypeNormalized"] = df["Label"]
-    df["CategoryNormalized"] = "Unknown"
+    category_lookup = build_supplemental_category_lookup()
+    df["CategoryNormalized"] = df["Text"].map(category_lookup).fillna("Unknown")
     df = df[["Text", "Label", "AiTypeNormalized", "CategoryNormalized"]]
     df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
 
@@ -199,6 +246,7 @@ def build_labeled_dataset(raw_df: pd.DataFrame, seed: int) -> tuple[pd.DataFrame
         "same_label_duplicate_rows_removed": int(duplicate_rows),
         "dataset_rows": int(len(df)),
         "label_counts": {k: int(v) for k, v in df["Label"].value_counts().to_dict().items()},
+        "category_counts": {k: int(v) for k, v in df["CategoryNormalized"].value_counts().to_dict().items()},
     }
     return df, summary
 
@@ -354,6 +402,9 @@ def write_split_files(
             "ai_type_counts": {
                 k: int(v) for k, v in df["AiTypeNormalized"].value_counts().to_dict().items()
             },
+            "category_counts": {
+                k: int(v) for k, v in df["CategoryNormalized"].value_counts().to_dict().items()
+            },
         }
     return out
 
@@ -363,11 +414,11 @@ def build_feature_union(max_features: int = 20000) -> FeatureUnion:
         [
             (
                 "word_tfidf",
-                TfidfVectorizer(max_features=max_features, ngram_range=(1, 2), analyzer="word"),
+                TfidfVectorizer(max_features=max_features, ngram_range=(1, 2), analyzer="word", sublinear_tf=True, min_df=2),
             ),
             (
                 "char_tfidf",
-                TfidfVectorizer(max_features=max_features, ngram_range=(3, 5), analyzer="char_wb"),
+                TfidfVectorizer(max_features=max_features, ngram_range=(3, 6), analyzer="char_wb", sublinear_tf=True, min_df=2),
             ),
         ]
     )
@@ -383,20 +434,20 @@ def build_models(
         "LogisticRegression_TFIDF": (
             Pipeline(
                 [
-                    ("features", build_feature_union(max_features=12000)),
+                    ("features", build_feature_union(max_features=20000)),
                     ("clf", LogisticRegression(max_iter=2000, class_weight="balanced")),
                 ]
             ),
-            {"clf__C": [0.5, 1.0, 2.0]},
+            {"clf__C": [0.5, 1.0, 2.0, 4.0]},
         ),
         "LinearSVC_TFIDF": (
             Pipeline(
                 [
-                    ("features", build_feature_union(max_features=12000)),
+                    ("features", build_feature_union(max_features=20000)),
                     ("clf", LinearSVC(class_weight="balanced")),
                 ]
             ),
-            {"clf__C": [0.5, 1.0, 2.0]},
+            {"clf__C": [0.5, 1.0, 2.0, 4.0]},
         ),
     }
 
@@ -457,6 +508,48 @@ def metric_row(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
         "f1": float(f1),
         "macro_f1": float(macro_f1),
     }
+
+
+def binary_score(model: Pipeline, x_values: list[str]) -> np.ndarray | None:
+    if hasattr(model, "predict_proba"):
+        scores = model.predict_proba(x_values)
+        if getattr(scores, "ndim", 1) == 2 and scores.shape[1] >= 2:
+            return np.asarray(scores[:, 1], dtype=float)
+    if hasattr(model, "decision_function"):
+        scores = model.decision_function(x_values)
+        if getattr(scores, "ndim", 1) == 1:
+            return np.asarray(scores, dtype=float)
+        if scores.shape[1] >= 2:
+            return np.asarray(scores[:, 1], dtype=float)
+    return None
+
+
+def save_roc_outputs(
+    reports_dir: Path,
+    figures_dir: Path,
+    model_name: str,
+    y_true: np.ndarray,
+    y_score: np.ndarray | None,
+) -> float | None:
+    if y_score is None or len(np.unique(y_true)) != 2:
+        return None
+    auc_value = float(roc_auc_score(y_true, y_score))
+    fpr, tpr, _thresholds = roc_curve(y_true, y_score)
+    pd.DataFrame({"fpr": fpr, "tpr": tpr}).to_csv(
+        reports_dir / f"roc_curve_{model_name}.csv",
+        index=False,
+    )
+    plt.figure(figsize=(5, 4))
+    plt.plot(fpr, tpr, label=f"AUC = {auc_value:.4f}")
+    plt.plot([0, 1], [0, 1], linestyle="--", color="gray", linewidth=1)
+    plt.title(f"ROC Curve: {model_name}")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.legend(loc="lower right")
+    plt.tight_layout()
+    plt.savefig(figures_dir / f"roc_curve_{model_name}.svg", dpi=180)
+    plt.close()
+    return auc_value
 
 
 def save_confusion_matrix(path: Path, y_true: np.ndarray, y_pred: np.ndarray, labels: list[str], title: str) -> None:
@@ -704,7 +797,7 @@ def generate_xai_outputs_strict(exp_dir: Path, model_name: str, labels: LabelSpe
         max_display=20,
     )
     plt.tight_layout()
-    plt.savefig(shap_dir / "shap_summary_plot.png", dpi=180, bbox_inches="tight")
+    plt.savefig(shap_dir / "shap_summary_plot.svg", dpi=180, bbox_inches="tight")
     plt.close()
 
     class_names = [labels.id2label[i] for i in sorted(labels.id2label)]
@@ -734,7 +827,7 @@ def generate_xai_outputs_strict(exp_dir: Path, model_name: str, labels: LabelSpe
         f"Generated from `{model_name}` for the binary `AI` vs `HUMAN` task.\n\n"
         "- `shap_like_feature_importance.csv`: lightweight linear proxy (legacy).\n"
         "- `shap/shap_global_importance.csv`: package-level SHAP mean absolute values.\n"
-        "- `shap/shap_summary_plot.png`: SHAP summary plot from the `shap` package.\n"
+        "- `shap/shap_summary_plot.svg`: SHAP summary plot from the `shap` package.\n"
         "- `lime/lime_explanation_*.html`: local explanations from the `lime` package.\n"
         "- `error_analysis_sample.csv`: held-out test errors for review.\n",
         encoding="utf-8",
@@ -754,7 +847,7 @@ def remove_stale_model_outputs(
         model_name = path.stem.replace("classification_report_", "")
         if model_name not in active_model_names:
             path.unlink()
-    for path in figures_dir.glob("confusion_matrix_*.png"):
+    for path in figures_dir.glob("confusion_matrix_*.svg"):
         model_name = path.stem.replace("confusion_matrix_", "")
         if model_name not in active_model_names:
             path.unlink()
@@ -795,9 +888,9 @@ def train_traditional_models(
     y_train = train_fit_df["Label"].map(labels.label2id).to_numpy(dtype=int)
     x_test = test_df["Text"].astype(str).tolist()
     y_test = test_df["Label"].map(labels.label2id).to_numpy(dtype=int)
-    final_fit_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
-    x_final = final_fit_df["Text"].astype(str).tolist()
-    y_final = final_fit_df["Label"].map(labels.label2id).to_numpy(dtype=int)
+    final_fit_df = train_fit_df
+    x_final = x_train
+    y_final = y_train
 
     rows: list[dict[str, object]] = []
     hyper_rows: list[dict[str, object]] = []
@@ -823,6 +916,8 @@ def train_traditional_models(
             best_model.fit(x_train, y_train)
             best_score = float("nan")
         y_pred = best_model.predict(x_test)
+        y_score = binary_score(best_model, x_test)
+        roc_auc = save_roc_outputs(reports_dir, figures_dir, model_name, y_test, y_score)
 
         row = {
             "experiment": exp_dir.name,
@@ -831,9 +926,11 @@ def train_traditional_models(
             "evaluation_train_rows": int(len(train_fit_df)),
             "test_rows": int(len(test_df)),
             "final_train_rows": int(len(final_fit_df)),
-            "saved_model_train_scope": "full_dataset",
+            "saved_model_train_scope": "train_validation",
             **metric_row(y_test, y_pred),
         }
+        if roc_auc is not None:
+            row["roc_auc"] = roc_auc
         rows.append(row)
         hyper_rows.append(
             {
@@ -869,7 +966,7 @@ def train_traditional_models(
             encoding="utf-8",
         )
         save_confusion_matrix(
-            figures_dir / f"confusion_matrix_{model_name}.png",
+            figures_dir / f"confusion_matrix_{model_name}.svg",
             y_test,
             y_pred,
             [labels.id2label[i] for i in sorted(labels.id2label)],
@@ -1056,3 +1153,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

@@ -1,5 +1,15 @@
 {
   "experiments": {
+    "experiment_1_stopwords_included": {
+      "status": "ok",
+      "models": [
+        "LogisticRegression_TFIDF",
+        "LinearSVC_TFIDF",
+        "RandomForest_TFIDF",
+        "XGBoost_TFIDF"
+      ],
+      "rows": 4
+    },
     "experiment_2_stopwords_removed": {
       "status": "ok",
       "models": [
@@ -11,5 +21,5 @@
       "rows": 4
     }
   },
-  "trained_models": 4
+  "trained_models": 8
 }

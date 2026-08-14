@@ -1,6 +1,10 @@
+import logging
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from ..config import settings
+
+logger = logging.getLogger(__name__)
 
 client: AsyncIOMotorClient | None = None
 db: AsyncIOMotorDatabase | None = None
@@ -20,7 +24,11 @@ async def connect() -> AsyncIOMotorDatabase:
 
         await ensure_demo_user()
     except Exception:
-        pass
+        logger.exception(
+            "Failed to create/refresh the demo account (demo@somalinlp.io). "
+            "Login with that account will fail with 'Invalid credentials' until this is fixed — "
+            "check that MongoDB is running and reachable."
+        )
 
     return get_database()
 

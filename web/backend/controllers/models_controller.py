@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
-from ..config import settings
+from ..config import REPO_ROOT, settings
 from ..services.ml_service import ml_service
 
 router = APIRouter(prefix="/models", tags=["models"])
@@ -16,6 +16,12 @@ def _as_float(value: str | None, default: float = 0.0) -> float:
         return default
 
 
+def _as_percent(value: str | None) -> float:
+    raw = _as_float(value)
+    percent = raw * 100 if 0.0 < raw <= 1.0 else raw
+    return round(percent, 2)
+
+
 def _experiment_from_path(path: str | None) -> str | None:
     if not path:
         return None
@@ -24,34 +30,45 @@ def _experiment_from_path(path: str | None) -> str | None:
 
 
 def _load_all_csv_models() -> list[dict]:
-    """Read all models from two_experiment_model_comparison.csv (primary)
-    and fall back to per-experiment all_models_comparison.csv for any gaps."""
+    """Read all models from per-experiment all_models_comparison.csv."""
     seen: set[str] = set()
     rows: list[dict] = []
 
-    # Primary: two_experiment_model_comparison.csv (has all 29 models)
-    for path in sorted(settings.experiments_dir.glob(
-            "experiment_*/results/two_experiment_model_comparison.csv")):
-        with path.open(newline="", encoding="utf-8") as fh:
-            for row in csv.DictReader(fh):
-                uid = f"{row.get('experiment','')}__{row.get('model','')}"
-                if uid not in seen:
-                    seen.add(uid)
-                    rows.append(dict(row))
-        break  # identical file in every experiment dir – read once
+    csv_paths = list(settings.experiments_dir.glob("experiment_*/results/all_models_comparison.csv"))
+    if not csv_paths:
+        csv_paths = list(settings.experiments_dir.glob("experiment_*/evaluation/reports/step9_metrics.csv"))
+    if not csv_paths:
+        csv_paths = list(REPO_ROOT.rglob("*all_models_comparison.csv"))
+    if not csv_paths:
+        csv_paths = list(REPO_ROOT.rglob("*step9_metrics.csv"))
 
-    # Fallback: per-experiment all_models_comparison.csv
-    for path in sorted(settings.experiments_dir.glob(
-            "experiment_*/results/all_models_comparison.csv")):
-        exp = path.parent.parent.name
-        with path.open(newline="", encoding="utf-8") as fh:
-            for row in csv.DictReader(fh):
-                uid = f"{exp}__{row.get('model','')}"
-                if uid not in seen:
-                    seen.add(uid)
-                    r = dict(row)
-                    r.setdefault("experiment", exp)
-                    rows.append(r)
+    csv_paths = [
+        p for p in csv_paths
+        if "node_modules" not in p.parts and ".venv" not in p.parts and "venv" not in p.parts
+    ]
+    csv_paths.sort(key=lambda p: ("results" not in p.parts, str(p)))
+
+    for path in csv_paths:
+        exp = path.parent.parent.name if path.parent and path.parent.parent else "experiment_1"
+        try:
+            with path.open(newline="", encoding="utf-8") as fh:
+                for raw_row in csv.DictReader(fh):
+                    if not raw_row:
+                        continue
+                    norm_row = {k.strip().lower(): (v.strip() if isinstance(v, str) else v) for k, v in raw_row.items() if k}
+                    exp_id = norm_row.get("experiment") or exp
+                    mod_name = norm_row.get("model") or ""
+                    if not mod_name:
+                        continue
+                    uid = f"{exp_id}__{mod_name}"
+                    if uid not in seen:
+                        seen.add(uid)
+                        r = dict(norm_row)
+                        r.setdefault("experiment", exp_id)
+                        r.setdefault("model", mod_name)
+                        rows.append(r)
+        except Exception:
+            continue
 
     rows.sort(key=lambda r: _as_float(r.get("accuracy")), reverse=True)
     return rows
@@ -80,8 +97,12 @@ def _find_ml_key(experiment: str, model_name: str, loaded: set[str]) -> str | No
     for c in candidates:
         if c in loaded:
             return c
-    # Fuzzy: check if any loaded key ends with the model name
+    # Fuzzy fallback: only match keys that belong to THIS experiment, never
+    # borrow another experiment's model file (that would silently mislabel
+    # predictions as coming from the wrong training run).
     for k in loaded:
+        if not k.startswith(exp_lo):
+            continue
         if k.endswith(mod_lo) or k.endswith(mod_lo.replace("_tfidf", "")):
             return k
     return None
@@ -109,9 +130,15 @@ async def list_models():
         model_name  = row.get("model", "")
         ml_key      = _find_ml_key(experiment, model_name, loaded)
 
-        model_data  = ml_service.models.get(ml_key)      if ml_key else None
+        # Deliberately not `ml_service.models[...]`: that would load the model just to
+        # read its family, and this endpoint asks about every model on every request.
         path_val    = ml_service.model_paths.get(ml_key) if ml_key else None
-        model_type  = (model_data["type"] if model_data else None) or row.get("family", "unknown")
+        model_type  = (ml_service.model_type(ml_key) if ml_key else None) or row.get("family", "unknown")
+
+        acc = _as_percent(row.get("accuracy"))
+        prec = _as_percent(row.get("precision"))
+        rec = _as_percent(row.get("recall"))
+        f1_final = _as_percent(row.get("f1"))
 
         models.append({
             "id":             ml_key or f"{experiment}__{model_name}".lower(),
@@ -119,12 +146,14 @@ async def list_models():
             "type":           row.get("family") or model_type,
             "experiment":     experiment,
             "experimentName": experiment.replace("_", " ").title() if experiment else "Unassigned",
-            "accuracy":       round(_as_float(row.get("accuracy")) * 100, 2),
-            "precision":      round(_as_float(row.get("precision")), 3),
-            "recall":         round(_as_float(row.get("recall")), 3),
-            "f1":             round(_as_float(row.get("f1")), 3),
+            "accuracy":       acc,
+            "precision":      prec,
+            "recall":         rec,
+            "f1":             f1_final,
             "status":         "active" if ml_key else "unavailable",
             "path":           path_val,
         })
 
     return models
+
+

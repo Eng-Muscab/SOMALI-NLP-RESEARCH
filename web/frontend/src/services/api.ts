@@ -20,7 +20,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url || ''
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
+    // A 401 on /auth/login or /auth/register means "wrong credentials" — the page
+    // component shows that error itself. A 401 anywhere else means the session
+    // expired, which is the only case that should force a redirect to /login.
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       removeToken()
       window.location.href = '/login'
     }

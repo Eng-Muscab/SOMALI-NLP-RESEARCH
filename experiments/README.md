@@ -1,7 +1,7 @@
 # Binary Label Experiments
 
 This folder contains the two canonical AI-vs-HUMAN retraining experiments based on
-`data/raw/labeled_text.xlsx`.
+`data/raw/labeled text.xlsx`.
 
 ## Task
 
@@ -10,7 +10,7 @@ The active supervised task is binary classification:
 - `AI`
 - `HUMAN`
 
-`data/raw/full_dataset.csv` is kept as supplemental/reference data only. It is not the source of the
+`data/raw/full_dataset.xlsx` is kept as supplemental/reference data only. It is not the source of the
 training labels for the default pipeline.
 
 ## Experiments
@@ -32,7 +32,8 @@ Each experiment contains:
 Full 12-step project run:
 
 ```powershell
-.\.venv\Scripts\python.exe experiments\run_full_12_steps.py
+.\.venv\Scripts\python.exe experiments\run_full_12_steps.py --skip-xlm-r
+.\.venv\Scripts\python.exe experiments\run_completion_pass.py --skip-transformers --skip-tuning --force
 ```
 
 Traditional ML only:
@@ -48,5 +49,7 @@ Full runner models:
 - `RandomForest_TFIDF`
 - `XGBoost_TFIDF`
 - `BiLSTM_Keras`
+- `BiLSTM_Word2Vec`
+- `BiLSTM_FastText`
 - `MiniTransformer_Keras`
-- `XLMRoberta_FineTuned`
+- `XLMRoberta_FineTuned` when pretrained transformer fine-tuning is not skipped

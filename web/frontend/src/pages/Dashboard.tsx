@@ -33,18 +33,6 @@ const CHART_PALETTE = ['#6366f1', '#818cf8', '#14b8a6', '#2dd4bf', '#8b5cf6', '#
 const shortModelName = (name: string) =>
   name.replace(/_TFIDF$/i, '').replace(/_/g, ' ').slice(0, 18)
 
-const dedupeModels = (models: ModelData[]) => {
-  const map = new Map<string, ModelData>()
-  models.forEach((model) => {
-    const key = model.name.toLowerCase()
-    const existing = map.get(key)
-    if (!existing || model.accuracy > existing.accuracy) {
-      map.set(key, model)
-    }
-  })
-  return Array.from(map.values())
-}
-
 const Dashboard = () => {
   const [models, setModels] = useState<ModelData[]>([])
   const [experiments, setExperiments] = useState<Experiment[]>([])
@@ -72,18 +60,17 @@ const Dashboard = () => {
     fetchDashboard()
   }, [])
 
-  const uniqueModels = useMemo(() => dedupeModels(models), [models])
   const sortedModels = useMemo(
-    () => [...uniqueModels].sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0)),
-    [uniqueModels],
+    () => [...models].sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0)),
+    [models],
   )
 
   const bestModel = sortedModels[0]
-  const averageF1 = uniqueModels.length
-    ? uniqueModels.reduce((t, m) => t + Number(m.f1 || 0), 0) / uniqueModels.length
+  const averageF1 = models.length
+    ? models.reduce((t, m) => t + Number(m.f1 || 0), 0) / models.length
     : 0
-  const averageAccuracy = uniqueModels.length
-    ? uniqueModels.reduce((t, m) => t + Number(m.accuracy || 0), 0) / uniqueModels.length
+  const averageAccuracy = models.length
+    ? models.reduce((t, m) => t + Number(m.accuracy || 0), 0) / models.length
     : 0
 
   const chartModels = useMemo(
@@ -144,7 +131,7 @@ const Dashboard = () => {
 
       {/* Hero */}
       <DashboardHero
-        modelCount={uniqueModels.length}
+        modelCount={models.length}
         bestAccuracy={bestModel?.accuracy ?? 0}
         connected={connected}
       />
@@ -174,8 +161,8 @@ const Dashboard = () => {
         />
         <StatCard
           title="Deployed Models"
-          value={loading ? '—' : uniqueModels.length}
-          subtitle="Active classifiers loaded"
+          value={loading ? '—' : models.length}
+          subtitle="Experiment-model evaluations"
           icon={<Layers size={20} className="text-white" />}
           color="primary"
           delay={0.1}
@@ -183,7 +170,7 @@ const Dashboard = () => {
         <StatCard
           title="Mean F1 Score"
           value={loading ? '—' : averageF1.toFixed(3)}
-          subtitle={`Across ${uniqueModels.length} classifiers`}
+          subtitle={`Across ${models.length} evaluations`}
           icon={<Target size={20} className="text-white" />}
           color="violet"
           delay={0.15}
@@ -203,7 +190,7 @@ const Dashboard = () => {
       {isResearcher && (
         <>
           {/* Charts */}
-          {!loading && uniqueModels.length > 0 && (
+          {!loading && models.length > 0 && (
             <PerformanceCharts models={chartModels} bestModel={chartModels[0]} />
           )}
 
@@ -213,7 +200,7 @@ const Dashboard = () => {
 
             <div className="space-y-6">
               {isAdminUser && (
-                <PipelineStatus connected={connected} modelCount={uniqueModels.length} experiments={experiments} />
+                <PipelineStatus connected={connected} modelCount={models.length} experiments={experiments} />
               )}
 
               {/* CTA card */}
@@ -233,7 +220,7 @@ const Dashboard = () => {
                     Ready to classify Somali text?
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-primary-100/85">
-                    Compare {uniqueModels.length || 'all'} trained models with confidence
+                    Compare {models.length || 'all'} trained model evaluations with confidence
                     scores and XAI explanations — built for research.
                   </p>
                   <Link
@@ -287,7 +274,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm font-bold text-neutral-900 dark:text-white">View Models</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">Explore {uniqueModels.length} trained classifiers</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Explore {models.length} trained evaluations</p>
               </div>
             </Link>
           </div>

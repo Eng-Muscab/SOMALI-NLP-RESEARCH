@@ -58,3 +58,54 @@ export const listExperiments = async () => {
 }
 
 export const getExperimentById = (id: string) => api.get<Experiment>(`/experiments/${id}`)
+
+export interface ModelComparisonRow {
+  experiment: string
+  family: string
+  model: string
+  accuracy: number
+  precision: number
+  recall: number
+  f1: number
+  macro_f1: number
+  evaluation_train_rows?: number
+  test_rows?: number
+  final_train_rows?: number
+  saved_model_train_scope?: string
+  raw_accuracy?: number
+  raw_precision?: number
+  raw_recall?: number
+  raw_f1?: number
+  raw_macro_f1?: number
+}
+
+export interface ExperimentBreakdown {
+  experiment: string
+  best_model: string
+  accuracy: number
+  f1: number
+  model_count: number
+  test_rows?: number
+}
+
+export interface RadarPoint {
+  metric: string
+  'Traditional ML': number
+  Transformers: number
+  'Deep Learning': number
+}
+
+export interface ResultsSummary {
+  models: ModelComparisonRow[]
+  total_models: number
+  total_experiments: number
+  peak_accuracy: number
+  best_model: ModelComparisonRow | null
+  experiments_breakdown: Record<string, ExperimentBreakdown>
+  family_radar: RadarPoint[]
+}
+
+export const getModelComparison = () => api.get<ModelComparisonRow[]>('/experiments/comparison')
+
+export const getResultsSummary = () => api.get<ResultsSummary>('/experiments/results-summary')
+

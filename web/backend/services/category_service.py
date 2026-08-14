@@ -40,7 +40,8 @@ class CategoryService:
 
     def _data_path(self) -> Path:
         from ..config import REPO_ROOT
-        return REPO_ROOT / "data" / "raw" / "full_dataset.csv"
+        xlsx_path = REPO_ROOT / "data" / "raw" / "full_dataset.xlsx"
+        return xlsx_path if xlsx_path.exists() else REPO_ROOT / "data" / "raw" / "full_dataset.csv"
 
     def _cache_path(self) -> Path:
         from ..config import REPO_ROOT
@@ -53,12 +54,15 @@ class CategoryService:
         from sklearn.svm import LinearSVC
         from sklearn.pipeline import Pipeline
 
-        csv_path = self._data_path()
-        if not csv_path.exists():
-            logger.warning("Category classifier: dataset not found at %s", csv_path)
+        data_path = self._data_path()
+        if not data_path.exists():
+            logger.warning("Category classifier: dataset not found at %s", data_path)
             return
 
-        df = pd.read_csv(csv_path, usecols=["Text", "Category"])
+        if data_path.suffix.lower() in {".xlsx", ".xlsm"}:
+            df = pd.read_excel(data_path, usecols=["Text", "Category"]).fillna("")
+        else:
+            df = pd.read_csv(data_path, usecols=["Text", "Category"])
         df["Category"] = df["Category"].str.strip().str.title()
         # Keep only known categories
         df = df[df["Category"].isin(_CATEGORIES)].dropna(subset=["Text"])

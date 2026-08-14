@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,31 +23,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 
 
-SOMALI_FUNCTION_WORDS = {
-    "aa",
-    "ah",
-    "ay",
-    "ayaa",
-    "baan",
-    "buu",
-    "iyo",
-    "in",
-    "is",
-    "ka",
-    "ku",
-    "la",
-    "looga",
-    "loo",
-    "marka",
-    "oo",
-    "si",
-    "u",
-    "waa",
-    "waxaa",
-    "waxay",
-    "waxa",
-    "wuxuu",
-}
+try:  # imported as `experiments.run_stopword_ablation`
+    from experiments.somali_stopwords import (
+        SOMALI_FUNCTION_WORDS,
+        remove_function_words,
+    )
+except ImportError:  # run directly as `python experiments/run_stopword_ablation.py`
+    from somali_stopwords import SOMALI_FUNCTION_WORDS, remove_function_words
 
 
 @dataclass(frozen=True)
@@ -79,11 +60,6 @@ def resolve_path(root: Path, value: str) -> Path:
 
 def normalize_labels(series: pd.Series) -> pd.Series:
     return series.astype(str).str.strip().str.upper()
-
-
-def remove_function_words(text: str) -> str:
-    tokens = re.findall(r"\b\w+\b", str(text).lower())
-    return " ".join(token for token in tokens if token not in SOMALI_FUNCTION_WORDS)
 
 
 def build_models(seed: int) -> dict[str, Pipeline]:
@@ -196,7 +172,7 @@ def run_experiment(
         )
 
         save_confusion_matrix(
-            figures_dir / f"confusion_matrix_{model_name}.png",
+            figures_dir / f"confusion_matrix_{model_name}.svg",
             y_test,
             y_pred,
             labels=[labels.id2label[0], labels.id2label[1]],
@@ -215,7 +191,7 @@ def run_experiment(
         "- `data/`: train and test files used for this experiment.\n"
         "- `reports/metrics.csv`: model-level accuracy, precision, recall, and F1-score.\n"
         "- `reports/classification_report_*.csv`: per-class metrics.\n"
-        "- `figures/confusion_matrix_*.png`: confusion matrix images.\n",
+        "- `figures/confusion_matrix_*.svg`: confusion matrix images.\n",
         encoding="utf-8",
     )
     return rows

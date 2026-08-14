@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import csv
+import io
 import logging
 from datetime import datetime, timezone
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pymongo.errors import DuplicateKeyError
 
 from ..database.mongo import get_database
@@ -31,9 +34,9 @@ def _serialize_user(doc: dict) -> dict:
         "last_login": last_login.isoformat() if hasattr(last_login, "isoformat") else None,
         "daily_prediction_count": doc.get("daily_prediction_count", 0),
         "monthly_prediction_count": doc.get("monthly_prediction_count", 0),
-        "daily_prediction_limit": doc.get("daily_prediction_limit", 20),
+        "daily_prediction_limit": doc.get("daily_prediction_limit", -1),
         "monthly_prediction_limit": doc.get("monthly_prediction_limit", 200),
-        "max_text_length": doc.get("max_text_length", 2000),
+        "max_text_length": doc.get("max_text_length", -1),
     }
 
 
@@ -97,9 +100,9 @@ async def create_user(
         "last_login": None,
         "daily_prediction_count": 0,
         "monthly_prediction_count": 0,
-        "daily_prediction_limit": body.daily_prediction_limit if body.daily_prediction_limit != 20 else limits["daily"],
+        "daily_prediction_limit": body.daily_prediction_limit if body.daily_prediction_limit != -1 else limits["daily"],
         "monthly_prediction_limit": body.monthly_prediction_limit if body.monthly_prediction_limit != 200 else limits["monthly"],
-        "max_text_length": body.max_text_length if body.max_text_length != 2000 else limits["max_text"],
+        "max_text_length": body.max_text_length if body.max_text_length != -1 else limits["max_text"],
         "last_count_reset": "",
         "last_month_reset": "",
     }
@@ -297,3 +300,75 @@ async def get_activity_logs(
         "pages": max(1, (total + limit - 1) // limit),
         "logs": logs,
     }
+
+
+# ── Submitted-article archive (for growing future training datasets) ──────────
+
+@router.get("/submitted-articles")
+async def list_submitted_articles(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=200),
+    category: str = Query(""),
+    label: str = Query(""),
+    current_user: dict = Depends(require_admin),
+):
+    db = get_database()
+    query: dict = {}
+    if category:
+        query["category"] = category
+    if label:
+        query["predicted_label"] = label
+
+    skip = (page - 1) * limit
+    total = await db.submitted_articles.count_documents(query)
+    cursor = db.submitted_articles.find(query).sort("created_at", -1).skip(skip).limit(limit)
+    docs = await cursor.to_list(length=limit)
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": max(1, (total + limit - 1) // limit),
+        "articles": [
+            {
+                "id": str(d["_id"]),
+                "text": d.get("text", ""),
+                "predicted_label": d.get("predicted_label", ""),
+                "confidence": d.get("confidence"),
+                "category": d.get("category", ""),
+                "model": d.get("model", ""),
+                "reviewed": d.get("reviewed", False),
+                "created_at": d["created_at"].isoformat() if d.get("created_at") else None,
+            }
+            for d in docs
+        ],
+    }
+
+
+@router.get("/submitted-articles/export")
+async def export_submitted_articles(
+    reviewed_only: bool = Query(False),
+    current_user: dict = Depends(require_super_admin),
+):
+    """CSV export in the same Text/Label shape as data/raw/labeled text.xlsx,
+    ready to be merged into a future dataset rebuild."""
+    db = get_database()
+    query: dict = {"reviewed": True} if reviewed_only else {}
+    cursor = db.submitted_articles.find(query).sort("created_at", -1)
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Text", "Label", "Category", "Confidence", "SubmittedAt"])
+    async for d in cursor:
+        writer.writerow([
+            d.get("text", ""),
+            d.get("predicted_label", ""),
+            d.get("category", ""),
+            d.get("confidence", ""),
+            d["created_at"].isoformat() if d.get("created_at") else "",
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=submitted_articles_archive.csv"},
+    )

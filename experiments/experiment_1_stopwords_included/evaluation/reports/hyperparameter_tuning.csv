@@ -1,5 +1,5 @@
 experiment,model,best_score_cv_f1,best_params,tuning,evaluation_train_rows,final_train_rows
-experiment_1_stopwords_included,LogisticRegression_TFIDF,,"{""clf__C"": 0.5}",fixed_default,4990,5869
-experiment_1_stopwords_included,LinearSVC_TFIDF,,"{""clf__C"": 0.5}",fixed_default,4990,5869
-experiment_1_stopwords_included,RandomForest_TFIDF,,"{""clf__max_depth"": null}",fixed_default,4990,5869
-experiment_1_stopwords_included,XGBoost_TFIDF,,"{""clf__learning_rate"": 0.05, ""clf__max_depth"": 3}",fixed_default,4990,5869
+experiment_1_stopwords_included,LogisticRegression_TFIDF,,"{""clf__C"": 0.5}",fixed_default,9678,9678
+experiment_1_stopwords_included,LinearSVC_TFIDF,,"{""clf__C"": 0.5}",fixed_default,9678,9678
+experiment_1_stopwords_included,RandomForest_TFIDF,,"{""clf__max_depth"": null}",fixed_default,9678,9678
+experiment_1_stopwords_included,XGBoost_TFIDF,,"{""clf__learning_rate"": 0.05, ""clf__max_depth"": 3}",fixed_default,9678,9678

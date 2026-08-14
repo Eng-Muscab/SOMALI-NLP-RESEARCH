@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   Menu, X, BarChart3, Brain, Zap, LogOut,
   FlaskConical, LineChart, Users, ScrollText, ChevronDown, Shield,
-  Sun, Moon, Microscope,
+  Sun, Moon, Microscope, Newspaper, Link2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@hooks/useAuth'
@@ -21,12 +21,14 @@ export const Layout = () => {
   const mainNav = [
     { path: '/dashboard',   icon: <BarChart3 size={15} />,    label: 'Dashboard'      },
     { path: '/predict',     icon: <Brain size={15} />,        label: 'Predict'        },
+    { path: '/link',        icon: <Link2 size={15} />,        label: 'Analyse Link'   },
+    { path: '/news',        icon: <Newspaper size={15} />,    label: 'News Feed'      },
     { path: '/models',      icon: <Zap size={15} />,          label: 'Models'         },
     { path: '/experiments', icon: <FlaskConical size={15} />, label: 'Experiments'    },
     { path: '/xai',         icon: <Microscope size={15} />,   label: 'Explainability' },
+    { path: '/analytics',   icon: <LineChart size={15} />,    label: 'Analytics'      },
   ]
   const adminNav = [
-    { path: '/analytics',   icon: <LineChart size={15} />,   label: 'Analytics'  },
     { path: '/admin/users', icon: <Users size={15} />,       label: 'Users'      },
     { path: '/admin/logs',  icon: <ScrollText size={15} />,  label: 'Audit Logs' },
   ]

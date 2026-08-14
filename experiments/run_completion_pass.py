@@ -20,7 +20,7 @@ import seaborn as sns
 import tensorflow as tf
 import torch
 from gensim.models import FastText, Word2Vec
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -38,6 +38,7 @@ from experiments.run_full_12_steps import (
     EXPERIMENTS,
     TextDataset,
     metric_payload,
+    save_hf_model_with_fallback,
     save_dl_outputs,
     write_step_report,
 )
@@ -203,9 +204,11 @@ def train_bilstm_with_embeddings(
         verbose=2,
         callbacks=[tf.keras.callbacks.EarlyStopping(patience=1, restore_best_weights=True)],
     )
-    pred_ids = np.argmax(model.predict(x_test, batch_size=128, verbose=0), axis=1)
+    probabilities = model.predict(x_test, batch_size=128, verbose=0)
+    pred_ids = np.argmax(probabilities, axis=1)
     y_pred = np.array([label_names[idx] for idx in pred_ids])
-    return save_dl_outputs(exp_dir, "deep_learning", model_name, y_test_labels, y_pred, label_names, history, model)
+    positive_scores = probabilities[:, 1] if probabilities.shape[1] == 2 else None
+    return save_dl_outputs(exp_dir, "deep_learning", model_name, y_test_labels, y_pred, label_names, history, model, positive_scores)
 
 
 def freeze_transformer_for_cpu_tune(model: AutoModelForSequenceClassification) -> None:
@@ -234,6 +237,7 @@ def train_hf_transformer(
     seed: int,
     model_id: str,
     model_name: str,
+    batch_size: int = 8,
 ) -> dict[str, object]:
     torch.manual_seed(seed)
     data_dir = exp_dir / "data"
@@ -276,7 +280,7 @@ def train_hf_transformer(
         max_length=max_length,
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=16)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -297,18 +301,20 @@ def train_hf_transformer(
 
     model.eval()
     pred_ids: list[int] = []
+    positive_scores: list[float] = []
     with torch.no_grad():
         for batch in test_loader:
             batch.pop("labels")
             batch = {key: value.to(device) for key, value in batch.items()}
             logits = model(**batch).logits
+            if len(label_names) == 2:
+                positive_scores.extend(torch.softmax(logits, dim=-1)[:, 1].cpu().tolist())
             pred_ids.extend(torch.argmax(logits, dim=-1).cpu().tolist())
     y_pred = np.array([id2label[idx] for idx in pred_ids])
     y_true = np.array(test_labels)
 
-    model.save_pretrained(model_dir)
-    tokenizer.save_pretrained(model_dir)
-    pd.DataFrame({"loss": losses}).to_csv(model_dir / f"{model_name}_training_log.csv", index=False)
+    saved_model_dir = save_hf_model_with_fallback(model, tokenizer, model_dir)
+    pd.DataFrame({"loss": losses}).to_csv(saved_model_dir / f"{model_name}_training_log.csv", index=False)
 
     pd.DataFrame(
         classification_report(y_true, y_pred, labels=label_names, output_dict=True, zero_division=0)
@@ -324,10 +330,30 @@ def train_hf_transformer(
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
-    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.png", dpi=180)
+    plt.savefig(figures_dir / f"confusion_matrix_{model_name}.svg", dpi=180)
     plt.close()
 
-    return {
+    roc_auc = None
+    if positive_scores and len(label_names) == 2 and len(np.unique(y_true)) == 2:
+        y_binary = np.array([1 if label == label_names[1] else 0 for label in y_true])
+        roc_auc = float(roc_auc_score(y_binary, np.array(positive_scores)))
+        fpr, tpr, _thresholds = roc_curve(y_binary, np.array(positive_scores))
+        pd.DataFrame({"fpr": fpr, "tpr": tpr}).to_csv(
+            reports_dir / f"roc_curve_{model_name}.csv",
+            index=False,
+        )
+        plt.figure(figsize=(5, 4))
+        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
+        plt.plot([0, 1], [0, 1], linestyle="--", color="gray", linewidth=1)
+        plt.title(f"ROC Curve: {model_name}")
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.legend(loc="lower right")
+        plt.tight_layout()
+        plt.savefig(figures_dir / f"roc_curve_{model_name}.svg", dpi=180)
+        plt.close()
+
+    row = {
         "experiment": exp_dir.name,
         "family": "transformers",
         "model": model_name,
@@ -337,6 +363,9 @@ def train_hf_transformer(
         "saved_model_train_scope": "train_validation",
         **metric_payload(y_true, y_pred, label_names),
     }
+    if roc_auc is not None:
+        row["roc_auc"] = roc_auc
+    return row
 
 
 def model_report_exists(exp_dir: Path, model_name: str) -> bool:
@@ -368,14 +397,18 @@ def row_from_classification_report(exp_dir: Path, model_name: str) -> dict[str, 
     accuracy = float(report.loc["accuracy", "precision"])
     family = infer_model_family(model_name)
     train_scope = "full_dataset" if family == "traditional_ml" else "train_validation"
-    eval_rows = 4990
-    final_rows = 5869 if family == "traditional_ml" else eval_rows
-    return {
+    data_dir = exp_dir / "data"
+    train_rows = len(pd.read_csv(data_dir / "clean_train.csv", keep_default_na=False))
+    val_rows = len(pd.read_csv(data_dir / "clean_val.csv", keep_default_na=False))
+    test_rows = len(pd.read_csv(data_dir / "clean_test.csv", keep_default_na=False))
+    eval_rows = train_rows + val_rows
+    final_rows = eval_rows + test_rows if family == "traditional_ml" else eval_rows
+    row = {
         "experiment": exp_dir.name,
         "family": family,
         "model": model_name,
         "evaluation_train_rows": eval_rows,
-        "test_rows": 879,
+        "test_rows": test_rows,
         "final_train_rows": final_rows,
         "saved_model_train_scope": train_scope,
         "accuracy": accuracy,
@@ -384,6 +417,12 @@ def row_from_classification_report(exp_dir: Path, model_name: str) -> dict[str, 
         "f1": float(weighted["f1-score"]),
         "macro_f1": float(macro["f1-score"]),
     }
+    roc_path = exp_dir / "evaluation" / "reports" / f"roc_curve_{model_name}.csv"
+    if roc_path.exists():
+        curve = pd.read_csv(roc_path)
+        if {"fpr", "tpr"}.issubset(curve.columns):
+            row["roc_auc"] = float(np.trapezoid(curve["tpr"], curve["fpr"]))
+    return row
 
 
 def rebuild_comparison_from_reports(exp_dir: Path) -> list[dict[str, object]]:
@@ -418,6 +457,7 @@ def main() -> int:
     parser.add_argument("--skip-embeddings", action="store_true")
     parser.add_argument("--skip-tuning", action="store_true")
     parser.add_argument("--skip-xai", action="store_true")
+    parser.add_argument("--force", action="store_true", help="Retrain completion-pass models even when artifacts exist.")
     args = parser.parse_args()
 
     cfg = load_config(ROOT / "config.yaml")
@@ -453,17 +493,17 @@ def main() -> int:
             )
 
         if not args.skip_embeddings:
-            if model_report_exists(exp_dir, "BiLSTM_Word2Vec") and keras_artifact_exists(exp_dir, "BiLSTM_Word2Vec"):
+            if not args.force and model_report_exists(exp_dir, "BiLSTM_Word2Vec") and keras_artifact_exists(exp_dir, "BiLSTM_Word2Vec"):
                 print(f"== {name}: BiLSTM + Word2Vec already complete, skipping ==")
             else:
                 print(f"== {name}: BiLSTM + Word2Vec ==")
                 new_rows.append(train_bilstm_with_embeddings(exp_dir, label_names, seed, "word2vec", "BiLSTM_Word2Vec"))
-            if model_report_exists(exp_dir, "BiLSTM_FastText") and keras_artifact_exists(exp_dir, "BiLSTM_FastText"):
+            if not args.force and model_report_exists(exp_dir, "BiLSTM_FastText") and keras_artifact_exists(exp_dir, "BiLSTM_FastText"):
                 print(f"== {name}: BiLSTM + FastText already complete, skipping ==")
             else:
                 print(f"== {name}: BiLSTM + FastText ==")
                 new_rows.append(train_bilstm_with_embeddings(exp_dir, label_names, seed, "fasttext", "BiLSTM_FastText"))
-            if model_report_exists(exp_dir, "BiLSTM_MultilingualEmbeddings") and keras_artifact_exists(exp_dir, "BiLSTM_MultilingualEmbeddings"):
+            if not args.force and model_report_exists(exp_dir, "BiLSTM_MultilingualEmbeddings") and keras_artifact_exists(exp_dir, "BiLSTM_MultilingualEmbeddings"):
                 print(f"== {name}: BiLSTM + Multilingual embeddings already complete, skipping ==")
             else:
                 print(f"== {name}: BiLSTM + Multilingual embeddings ==")
@@ -479,7 +519,7 @@ def main() -> int:
 
         if not args.skip_transformers:
             for model_id, model_name in TRANSFORMER_SPECS:
-                if model_report_exists(exp_dir, model_name) and hf_artifact_exists(exp_dir, model_name):
+                if not args.force and model_report_exists(exp_dir, model_name) and hf_artifact_exists(exp_dir, model_name):
                     print(f"== {name}: {model_name} already complete, skipping ==")
                     continue
                 print(f"== {name}: fine-tuning {model_name} ==")

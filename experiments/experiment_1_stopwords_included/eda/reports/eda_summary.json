@@ -1,10 +1,55 @@
 {
-  "rows": 4109,
+  "rows": 8056,
   "label_counts": {
-    "AI": 2090,
-    "HUMAN": 2019
+    "AI": 4071,
+    "HUMAN": 3985
   },
-  "word_count_mean": 419.84643465563397,
-  "word_count_median": 286.0,
-  "word_count_max": 3073
+  "word_count_mean": 448.60638033763655,
+  "word_count_median": 337.0,
+  "word_count_max": 4135,
+  "ai_type_counts": {
+    "ChatGPT": 2163,
+    "Gemini": 2028,
+    "Claude": 1653
+  },
+  "category_counts": {
+    "Politics": 1386,
+    "Sports": 993,
+    "Health": 616,
+    "Entertainment": 599,
+    "Technology": 584,
+    "Religion": 558,
+    "Business": 556,
+    "Education": 550
+  },
+  "ai_generated_category_counts": {
+    "Politics": 1386,
+    "Sports": 993,
+    "Health": 616,
+    "Entertainment": 599,
+    "Technology": 584,
+    "Religion": 558,
+    "Business": 556,
+    "Education": 550
+  },
+  "category_counts_normalized": {
+    "Politics": 1386,
+    "Sports": 993,
+    "Health": 616,
+    "Entertainment": 599,
+    "Technology": 584,
+    "Religion": 558,
+    "Business": 556,
+    "Education": 550
+  },
+  "ai_generated_category_counts_normalized": {
+    "Politics": 1386,
+    "Sports": 993,
+    "Health": 616,
+    "Entertainment": 599,
+    "Technology": 584,
+    "Religion": 558,
+    "Business": 556,
+    "Education": 550
+  }
 }

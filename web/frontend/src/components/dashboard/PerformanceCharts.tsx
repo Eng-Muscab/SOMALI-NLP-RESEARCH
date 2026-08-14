@@ -40,7 +40,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
       <p className="mb-2 text-xs font-bold text-neutral-500 dark:text-neutral-400">{label}</p>
       {payload.map((entry) => (
         <p key={entry.name} className="text-sm font-semibold" style={{ color: entry.color }}>
-          {entry.name}: {typeof entry.value === 'number' ? entry.value.toFixed(2) : entry.value}
+          {entry.name}: {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
           {entry.name === 'Accuracy' ? '%' : ''}
         </p>
       ))}
@@ -76,8 +76,8 @@ export const PerformanceCharts = ({ models, bestModel }: PerformanceChartsProps)
     return {
       experiment: name.replace('experiment_', 'Exp ').replace(/_/g, ' '),
       models: count,
-      avgAccuracy: Number(avgAcc.toFixed(2)),
-      avgF1: Number((avgF1 * 100).toFixed(2)),
+      avgAccuracy: Number(avgAcc.toFixed(1)),
+      avgF1: Number((avgF1 * 100).toFixed(1)),
     }
   })
 

@@ -1,0 +1,37 @@
+{
+  "done": [
+    "traditional",
+    "keras",
+    "embeddings",
+    "xlmr",
+    "transformers",
+    "xai",
+    "comparison"
+  ],
+  "results": {
+    "traditional": {
+      "minutes": 10.2,
+      "detail": "LogisticRegression_TFIDF=0.9016, LinearSVC_TFIDF=0.9221, RandomForest_TFIDF=0.8513, XGBoost_TFIDF=0.8320"
+    },
+    "keras": {
+      "minutes": 2.9,
+      "detail": "BiLSTM_Keras=0.8870, MiniTransformer_Keras=0.8952"
+    },
+    "embeddings": {
+      "minutes": 6.5,
+      "detail": "BiLSTM_Word2Vec=0.8501, BiLSTM_FastText=0.8507"
+    },
+    "xlmr": {
+      "minutes": 80.5,
+      "detail": "XLMRoberta_FineTuned=0.6979"
+    },
+    "transformers": {
+      "minutes": 470.6,
+      "detail": "mBERT_FineTuned=0.6593, SomBERTa_FineTuned=0.8308, AfroXLMR_FineTuned=0.7974, AfriBERTa_FineTuned=0.8396"
+    },
+    "xai": {
+      "minutes": 1.4,
+      "detail": "{'xai': 'LinearSVC_TFIDF'}"
+    }
+  }
+}

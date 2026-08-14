@@ -12,12 +12,17 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
+# -1 means unlimited. Every role is unlimited on every axis: this is a research
+# platform used by the project team and their supervisor, and a per-day cap only ever
+# interrupted their own testing. The one limit users still meet is the *minimum* text
+# length (MIN_TEXT_LENGTH in predict_controller.py), which exists because a classifier
+# given four words has nothing to work with.
 ROLE_LIMITS: dict[str, dict] = {
-    UserRole.SUPER_ADMIN: {"daily": -1, "monthly": -1, "max_text": 10000},
-    UserRole.ADMIN:       {"daily": -1, "monthly": -1, "max_text": 10000},
-    UserRole.ANALYST:     {"daily": 200, "monthly": 3000, "max_text": 5000},
-    UserRole.RESEARCHER:  {"daily": 500, "monthly": 10000, "max_text": 5000},
-    UserRole.VIEWER:      {"daily": 20, "monthly": 200, "max_text": 2000},
+    UserRole.SUPER_ADMIN: {"daily": -1, "monthly": -1, "max_text": -1},
+    UserRole.ADMIN:       {"daily": -1, "monthly": -1, "max_text": -1},
+    UserRole.ANALYST:     {"daily": -1, "monthly": -1, "max_text": -1},
+    UserRole.RESEARCHER:  {"daily": -1, "monthly": -1, "max_text": -1},
+    UserRole.VIEWER:      {"daily": -1, "monthly": -1, "max_text": -1},
 }
 
 
@@ -31,8 +36,11 @@ class UserDocument(BaseModel):
     last_login: datetime | None = None
     daily_prediction_count: int = 0
     monthly_prediction_count: int = 0
-    daily_prediction_limit: int = 20
-    monthly_prediction_limit: int = 200
-    max_text_length: int = 2000
+    # -1 is the unlimited sentinel throughout. This is a research platform whose
+    # users are the project team and their supervisor; a per-day cap only ever
+    # interrupted their own testing.
+    daily_prediction_limit: int = -1
+    monthly_prediction_limit: int = -1
+    max_text_length: int = -1
     last_count_reset: str = ""  # YYYY-MM-DD
     last_month_reset: str = ""  # YYYY-MM

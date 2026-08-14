@@ -79,7 +79,7 @@ function ConfusionMatrix({ model, onClose }: { model: ModelData; onClose: () => 
       `/experiments/evaluation/confusion-matrix/${model.experiment}/${model.name}`,
       { responseType: 'arraybuffer' }
     ).then(r => {
-      const blob = new Blob([r.data], { type: 'image/png' })
+      const blob = new Blob([r.data], { type: 'image/svg+xml' })
       const u    = URL.createObjectURL(blob)
       blobRef.current = u
       setUrl(u)
@@ -145,9 +145,7 @@ const Models = () => {
     try {
       const res = await api.get<ModelData[]>('/models')
       const raw = Array.isArray(res.data) ? res.data : []
-      const map = new Map<string, ModelData>()
-      raw.forEach(m => { const ex = map.get(m.id); if (!ex || m.accuracy > ex.accuracy) map.set(m.id, m) })
-      setModels(Array.from(map.values()))
+      setModels(raw)
     } catch (e) {
       setError(getApiErrorMessage(e, 'Unable to load models.'))
     } finally { setLoading(false) }
@@ -356,7 +354,7 @@ const Models = () => {
                     <div>
                       <div className="mb-1.5 flex justify-between text-[10px] font-bold uppercase tracking-wide">
                         <span className="text-neutral-400 dark:text-neutral-600">Accuracy</span>
-                        <span className="text-neutral-800 dark:text-neutral-200">{model.accuracy}%</span>
+                        <span className="text-neutral-800 dark:text-neutral-200">{model.accuracy.toFixed(1)}%</span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
                         <motion.div
@@ -445,7 +443,7 @@ const Models = () => {
                             {c.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 font-bold text-neutral-900 dark:text-white">{model.accuracy}%</td>
+                        <td className="px-5 py-3.5 font-bold text-neutral-900 dark:text-white">{model.accuracy.toFixed(1)}%</td>
                         <td className="px-5 py-3.5 font-bold text-neutral-900 dark:text-white">{model.f1}</td>
                         <td className="px-5 py-3.5">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${

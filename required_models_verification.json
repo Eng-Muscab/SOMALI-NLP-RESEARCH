@@ -1,8 +1,8 @@
 {
   "summary": {
     "total_required_artifacts": 14,
-    "verified": 14,
-    "failed": 0
+    "verified": 9,
+    "failed": 5
   },
   "results": [
     {
@@ -14,46 +14,46 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.8714448236632537,
-        "precision": 0.8742748305540355,
-        "recall": 0.8714448236632537,
-        "f1": 0.8713093021131828,
-        "macro_f1": 0.8713642432821305,
+        "accuracy": 0.8569774174869716,
+        "precision": 0.8573223081609744,
+        "recall": 0.8569774174869716,
+        "f1": 0.8569702243812789,
+        "macro_f1": 0.8569756911416053,
         "confusion_matrix": [
           [
-            372,
-            75
+            737,
+            136
           ],
           [
-            38,
-            394
+            111,
+            743
           ]
         ]
       },
       "reported_comparison": {
         "accuracy": {
-          "actual": 0.8714448236632537,
-          "reported": 0.8714448236632537,
+          "actual": 0.8569774174869716,
+          "reported": 0.8569774174869716,
           "delta": 0.0
         },
         "precision": {
-          "actual": 0.8742748305540355,
-          "reported": 0.8742748305540355,
+          "actual": 0.8573223081609744,
+          "reported": 0.8573223081609744,
           "delta": 0.0
         },
         "recall": {
-          "actual": 0.8714448236632537,
-          "reported": 0.8714448236632537,
+          "actual": 0.8569774174869716,
+          "reported": 0.8569774174869716,
           "delta": 0.0
         },
         "f1": {
-          "actual": 0.8713093021131828,
-          "reported": 0.8713093021131828,
+          "actual": 0.8569702243812789,
+          "reported": 0.8569702243812789,
           "delta": 0.0
         },
         "macro_f1": {
-          "actual": 0.8713642432821305,
-          "reported": 0.8713642432821305,
+          "actual": 0.8569756911416053,
+          "reported": 0.8569756911416053,
           "delta": 0.0
         }
       },
@@ -62,16 +62,16 @@
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
           "prediction": "AI",
           "probabilities": {
-            "AI": 0.9076289534568787,
-            "HUMAN": 0.09237106889486313
+            "AI": 0.8517422676086426,
+            "HUMAN": 0.14825770258903503
           }
         },
         {
           "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
           "prediction": "HUMAN",
           "probabilities": {
-            "AI": 0.0667089894413948,
-            "HUMAN": 0.9332910180091858
+            "AI": 0.08086422085762024,
+            "HUMAN": 0.9191358089447021
           }
         }
       ]
@@ -85,46 +85,46 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.8725824800910125,
-        "precision": 0.8728248491954694,
-        "recall": 0.8725824800910125,
-        "f1": 0.8725907259414679,
-        "macro_f1": 0.8725783571657848,
+        "accuracy": 0.8679791546033584,
+        "precision": 0.8756601890395898,
+        "recall": 0.8679791546033584,
+        "f1": 0.8674209383851379,
+        "macro_f1": 0.8675078736978115,
         "confusion_matrix": [
           [
-            386,
-            61
+            698,
+            175
           ],
           [
-            51,
-            381
+            53,
+            801
           ]
         ]
       },
       "reported_comparison": {
         "accuracy": {
-          "actual": 0.8725824800910125,
-          "reported": 0.8725824800910125,
+          "actual": 0.8679791546033584,
+          "reported": 0.8679791546033584,
           "delta": 0.0
         },
         "precision": {
-          "actual": 0.8728248491954694,
-          "reported": 0.8728248491954694,
+          "actual": 0.8756601890395898,
+          "reported": 0.8756601890395898,
           "delta": 0.0
         },
         "recall": {
-          "actual": 0.8725824800910125,
-          "reported": 0.8725824800910125,
+          "actual": 0.8679791546033584,
+          "reported": 0.8679791546033584,
           "delta": 0.0
         },
         "f1": {
-          "actual": 0.8725907259414679,
-          "reported": 0.8725907259414679,
+          "actual": 0.8674209383851379,
+          "reported": 0.8674209383851379,
           "delta": 0.0
         },
         "macro_f1": {
-          "actual": 0.8725783571657848,
-          "reported": 0.8725783571657848,
+          "actual": 0.8675078736978115,
+          "reported": 0.8675078736978115,
           "delta": 0.0
         }
       },
@@ -133,16 +133,16 @@
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
           "prediction": "AI",
           "probabilities": {
-            "AI": 0.9869418740272522,
-            "HUMAN": 0.013058093376457691
+            "AI": 0.9597324728965759,
+            "HUMAN": 0.040267471224069595
           }
         },
         {
           "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
           "prediction": "HUMAN",
           "probabilities": {
-            "AI": 0.10998757183551788,
-            "HUMAN": 0.8900123834609985
+            "AI": 0.09790769219398499,
+            "HUMAN": 0.9020923376083374
           }
         }
       ]
@@ -152,71 +152,10 @@
       "model": "BiLSTM_MultilingualEmbeddings",
       "family": "deep_learning",
       "artifact": "experiments\\experiment_1_stopwords_included\\models\\deep_learning\\BiLSTM_MultilingualEmbeddings.keras",
-      "artifact_exists": true,
-      "loaded": true,
-      "inference_ok": true,
-      "metrics": {
-        "accuracy": 0.7167235494880546,
-        "precision": 0.7198083861530961,
-        "recall": 0.7167235494880546,
-        "f1": 0.715208719923791,
-        "macro_f1": 0.7148100805647744,
-        "confusion_matrix": [
-          [
-            351,
-            96
-          ],
-          [
-            153,
-            279
-          ]
-        ]
-      },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.7167235494880546,
-          "reported": 0.7167235494880546,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.7198083861530961,
-          "reported": 0.7198083861530961,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.7167235494880546,
-          "reported": 0.7167235494880546,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.715208719923791,
-          "reported": 0.715208719923791,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.7148100805647744,
-          "reported": 0.7148100805647744,
-          "delta": 0.0
-        }
-      },
-      "sample_predictions": [
-        {
-          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
-          "prediction": "HUMAN",
-          "probabilities": {
-            "AI": 0.4903484582901001,
-            "HUMAN": 0.5096515417098999
-          }
-        },
-        {
-          "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
-          "prediction": "AI",
-          "probabilities": {
-            "AI": 0.5263370871543884,
-            "HUMAN": 0.4736628830432892
-          }
-        }
-      ]
+      "artifact_exists": false,
+      "loaded": false,
+      "inference_ok": false,
+      "error": "ValueError('File not found: filepath=D:\\\\Final Year Project\\\\somali-nlp-research\\\\experiments\\\\experiment_1_stopwords_included\\\\models\\\\deep_learning\\\\BiLSTM_MultilingualEmbeddings.keras. Please ensure the file is an accessible `.keras` zip file.')"
     },
     {
       "experiment": "experiment_1_stopwords_included",
@@ -227,49 +166,23 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.676905574516496,
-        "precision": 0.6788835512732082,
-        "recall": 0.676905574516496,
-        "f1": 0.676487067095039,
-        "macro_f1": 0.6766440073780854,
+        "accuracy": 0.6496815286624203,
+        "precision": 0.6511539401938784,
+        "recall": 0.6496815286624203,
+        "f1": 0.6491876906290969,
+        "macro_f1": 0.6493127962642056,
         "confusion_matrix": [
           [
-            285,
-            162
+            533,
+            340
           ],
           [
-            122,
-            310
+            265,
+            589
           ]
         ]
       },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.676905574516496,
-          "reported": 0.676905574516496,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.6788835512732082,
-          "reported": 0.6788835512732082,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.676905574516496,
-          "reported": 0.676905574516496,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.676487067095039,
-          "reported": 0.676487067095039,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.6766440073780854,
-          "reported": 0.6766440073780854,
-          "delta": 0.0
-        }
-      },
+      "reported_comparison": {},
       "sample_predictions": [
         {
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
@@ -298,49 +211,23 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.856655290102389,
-        "precision": 0.8645518101563239,
-        "recall": 0.856655290102389,
-        "f1": 0.8556549757499552,
-        "macro_f1": 0.8554276315789473,
+        "accuracy": 0.802547770700637,
+        "precision": 0.8154147654037577,
+        "recall": 0.802547770700637,
+        "f1": 0.8002210893745964,
+        "macro_f1": 0.7999713326220834,
         "confusion_matrix": [
           [
-            417,
-            30
+            791,
+            82
           ],
           [
-            96,
-            336
+            259,
+            595
           ]
         ]
       },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.856655290102389,
-          "reported": 0.856655290102389,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.8645518101563239,
-          "reported": 0.8645518101563239,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.856655290102389,
-          "reported": 0.856655290102389,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.8556549757499552,
-          "reported": 0.8556549757499552,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.8554276315789473,
-          "reported": 0.8554276315789473,
-          "delta": 0.0
-        }
-      },
+      "reported_comparison": {},
       "sample_predictions": [
         {
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
@@ -369,49 +256,23 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.8065984072810012,
-        "precision": 0.8084028549973051,
-        "recall": 0.8065984072810012,
-        "f1": 0.8061372814638591,
-        "macro_f1": 0.8059451457067166,
+        "accuracy": 0.7764910248986682,
+        "precision": 0.7790195930516551,
+        "recall": 0.7764910248986682,
+        "f1": 0.7758118112596608,
+        "macro_f1": 0.7756617524324383,
         "confusion_matrix": [
           [
-            380,
-            67
+            723,
+            150
           ],
           [
-            103,
-            329
+            236,
+            618
           ]
         ]
       },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.8065984072810012,
-          "reported": 0.8065984072810012,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.8084028549973051,
-          "reported": 0.8084028549973051,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.8065984072810012,
-          "reported": 0.8065984072810012,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.8061372814638591,
-          "reported": 0.8061372814638591,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.8059451457067166,
-          "reported": 0.8059451457067166,
-          "delta": 0.0
-        }
-      },
+      "reported_comparison": {},
       "sample_predictions": [
         {
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
@@ -440,49 +301,23 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.8782707622298066,
-        "precision": 0.8808027886447631,
-        "recall": 0.8782707622298066,
-        "f1": 0.8779665723370365,
-        "macro_f1": 0.8778432521102376,
+        "accuracy": 0.8326577880718008,
+        "precision": 0.8347738015409173,
+        "recall": 0.8326577880718008,
+        "f1": 0.8322982848749785,
+        "macro_f1": 0.8322020797941386,
         "confusion_matrix": [
           [
-            412,
-            35
+            764,
+            109
           ],
           [
-            72,
-            360
+            180,
+            674
           ]
         ]
       },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.8782707622298066,
-          "reported": 0.8782707622298066,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.8808027886447631,
-          "reported": 0.8808027886447631,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.8782707622298066,
-          "reported": 0.8782707622298066,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.8779665723370365,
-          "reported": 0.8779665723370365,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.8778432521102376,
-          "reported": 0.8778432521102376,
-          "delta": 0.0
-        }
-      },
+      "reported_comparison": {},
       "sample_predictions": [
         {
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
@@ -511,64 +346,64 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.8748577929465301,
-        "precision": 0.8796025900929799,
-        "recall": 0.8748577929465301,
-        "f1": 0.8746008753881896,
-        "macro_f1": 0.8746811621251711,
+        "accuracy": 0.8708743485813549,
+        "precision": 0.8715418215620564,
+        "recall": 0.8708743485813549,
+        "f1": 0.8708501018525027,
+        "macro_f1": 0.870863264362451,
         "confusion_matrix": [
           [
-            368,
-            79
+            744,
+            129
           ],
           [
-            31,
-            401
+            94,
+            760
           ]
         ]
       },
       "reported_comparison": {
         "accuracy": {
-          "actual": 0.8748577929465301,
-          "reported": 0.8748577929465301,
+          "actual": 0.8708743485813549,
+          "reported": 0.8708743485813549,
           "delta": 0.0
         },
         "precision": {
-          "actual": 0.8796025900929799,
-          "reported": 0.8796025900929799,
+          "actual": 0.8715418215620564,
+          "reported": 0.8715418215620564,
           "delta": 0.0
         },
         "recall": {
-          "actual": 0.8748577929465301,
-          "reported": 0.8748577929465301,
+          "actual": 0.8708743485813549,
+          "reported": 0.8708743485813549,
           "delta": 0.0
         },
         "f1": {
-          "actual": 0.8746008753881896,
-          "reported": 0.8746008753881896,
+          "actual": 0.8708501018525027,
+          "reported": 0.8708501018525027,
           "delta": 0.0
         },
         "macro_f1": {
-          "actual": 0.8746811621251711,
-          "reported": 0.8746811621251711,
+          "actual": 0.870863264362451,
+          "reported": 0.870863264362451,
           "delta": 0.0
         }
       },
       "sample_predictions": [
         {
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
-          "prediction": "HUMAN",
+          "prediction": "AI",
           "probabilities": {
-            "AI": 0.2285252958536148,
-            "HUMAN": 0.7714747190475464
+            "AI": 0.7599093317985535,
+            "HUMAN": 0.24009066820144653
           }
         },
         {
           "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
           "prediction": "HUMAN",
           "probabilities": {
-            "AI": 0.07255792617797852,
-            "HUMAN": 0.9274420738220215
+            "AI": 0.063215471804142,
+            "HUMAN": 0.936784565448761
           }
         }
       ]
@@ -582,46 +417,46 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.888509670079636,
-        "precision": 0.8887541006467068,
-        "recall": 0.888509670079636,
-        "f1": 0.8885168851987845,
-        "macro_f1": 0.8885060625200617,
+        "accuracy": 0.8656629994209613,
+        "precision": 0.8662203244365735,
+        "recall": 0.8656629994209613,
+        "f1": 0.8656442611760006,
+        "macro_f1": 0.865655387008946,
         "confusion_matrix": [
           [
-            393,
-            54
+            741,
+            132
           ],
           [
-            44,
-            388
+            100,
+            754
           ]
         ]
       },
       "reported_comparison": {
         "accuracy": {
-          "actual": 0.888509670079636,
-          "reported": 0.888509670079636,
+          "actual": 0.8656629994209613,
+          "reported": 0.8656629994209613,
           "delta": 0.0
         },
         "precision": {
-          "actual": 0.8887541006467068,
-          "reported": 0.8887541006467068,
+          "actual": 0.8662203244365735,
+          "reported": 0.8662203244365735,
           "delta": 0.0
         },
         "recall": {
-          "actual": 0.888509670079636,
-          "reported": 0.888509670079636,
+          "actual": 0.8656629994209613,
+          "reported": 0.8656629994209613,
           "delta": 0.0
         },
         "f1": {
-          "actual": 0.8885168851987845,
-          "reported": 0.8885168851987845,
+          "actual": 0.8656442611760006,
+          "reported": 0.8656442611760006,
           "delta": 0.0
         },
         "macro_f1": {
-          "actual": 0.8885060625200617,
-          "reported": 0.8885060625200617,
+          "actual": 0.865655387008946,
+          "reported": 0.865655387008946,
           "delta": 0.0
         }
       },
@@ -630,16 +465,16 @@
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
           "prediction": "AI",
           "probabilities": {
-            "AI": 0.7420809864997864,
-            "HUMAN": 0.25791898369789124
+            "AI": 0.935797929763794,
+            "HUMAN": 0.06420206278562546
           }
         },
         {
           "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
           "prediction": "HUMAN",
           "probabilities": {
-            "AI": 0.1865641176700592,
-            "HUMAN": 0.8134359121322632
+            "AI": 0.09133100509643555,
+            "HUMAN": 0.9086690545082092
           }
         }
       ]
@@ -649,71 +484,10 @@
       "model": "BiLSTM_MultilingualEmbeddings",
       "family": "deep_learning",
       "artifact": "experiments\\experiment_2_stopwords_removed\\models\\deep_learning\\BiLSTM_MultilingualEmbeddings.keras",
-      "artifact_exists": true,
-      "loaded": true,
-      "inference_ok": true,
-      "metrics": {
-        "accuracy": 0.6575654152445961,
-        "precision": 0.6798437907025917,
-        "recall": 0.6575654152445961,
-        "f1": 0.6444823839654754,
-        "macro_f1": 0.6432634680077933,
-        "confusion_matrix": [
-          [
-            377,
-            70
-          ],
-          [
-            231,
-            201
-          ]
-        ]
-      },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.6575654152445961,
-          "reported": 0.6575654152445961,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.6798437907025917,
-          "reported": 0.6798437907025917,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.6575654152445961,
-          "reported": 0.6575654152445961,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.6444823839654754,
-          "reported": 0.6444823839654754,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.6432634680077933,
-          "reported": 0.6432634680077933,
-          "delta": 0.0
-        }
-      },
-      "sample_predictions": [
-        {
-          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
-          "prediction": "HUMAN",
-          "probabilities": {
-            "AI": 0.31175947189331055,
-            "HUMAN": 0.6882405281066895
-          }
-        },
-        {
-          "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
-          "prediction": "AI",
-          "probabilities": {
-            "AI": 0.5017080903053284,
-            "HUMAN": 0.4982919692993164
-          }
-        }
-      ]
+      "artifact_exists": false,
+      "loaded": false,
+      "inference_ok": false,
+      "error": "ValueError('File not found: filepath=D:\\\\Final Year Project\\\\somali-nlp-research\\\\experiments\\\\experiment_2_stopwords_removed\\\\models\\\\deep_learning\\\\BiLSTM_MultilingualEmbeddings.keras. Please ensure the file is an accessible `.keras` zip file.')"
     },
     {
       "experiment": "experiment_2_stopwords_removed",
@@ -724,49 +498,23 @@
       "loaded": true,
       "inference_ok": true,
       "metrics": {
-        "accuracy": 0.5949943117178612,
-        "precision": 0.6348388959421888,
-        "recall": 0.5949943117178612,
-        "f1": 0.5674239783475172,
-        "macro_f1": 0.5692220435673223,
+        "accuracy": 0.5865662999420961,
+        "precision": 0.6378359001282922,
+        "recall": 0.5865662999420961,
+        "f1": 0.5478073439676381,
+        "macro_f1": 0.5492345148271627,
         "confusion_matrix": [
           [
-            154,
-            293
+            258,
+            615
           ],
           [
-            63,
-            369
+            99,
+            755
           ]
         ]
       },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.5949943117178612,
-          "reported": 0.5949943117178612,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.6348388959421888,
-          "reported": 0.6348388959421888,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.5949943117178612,
-          "reported": 0.5949943117178612,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.5674239783475172,
-          "reported": 0.5674239783475172,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.5692220435673223,
-          "reported": 0.5692220435673223,
-          "delta": 0.0
-        }
-      },
+      "reported_comparison": {},
       "sample_predictions": [
         {
           "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
@@ -792,70 +540,9 @@
       "family": "transformers",
       "artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\SomBERTa_FineTuned\\model.safetensors",
       "artifact_exists": true,
-      "loaded": true,
-      "inference_ok": true,
-      "metrics": {
-        "accuracy": 0.8623435722411832,
-        "precision": 0.8682610650631127,
-        "recall": 0.8623435722411832,
-        "f1": 0.8616074502440912,
-        "macro_f1": 0.8614137339290671,
-        "confusion_matrix": [
-          [
-            415,
-            32
-          ],
-          [
-            89,
-            343
-          ]
-        ]
-      },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.8623435722411832,
-          "reported": 0.8623435722411832,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.8682610650631127,
-          "reported": 0.8682610650631127,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.8623435722411832,
-          "reported": 0.8623435722411832,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.8616074502440912,
-          "reported": 0.8616074502440912,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.8614137339290671,
-          "reported": 0.8614137339290671,
-          "delta": 0.0
-        }
-      },
-      "sample_predictions": [
-        {
-          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
-          "prediction": "AI",
-          "probabilities": {
-            "AI": 0.7116156220436096,
-            "HUMAN": 0.28838440775871277
-          }
-        },
-        {
-          "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
-          "prediction": "HUMAN",
-          "probabilities": {
-            "AI": 0.01498981099575758,
-            "HUMAN": 0.9850102066993713
-          }
-        }
-      ]
+      "loaded": false,
+      "inference_ok": false,
+      "error": "OSError(22, 'Invalid argument')"
     },
     {
       "experiment": "experiment_2_stopwords_removed",
@@ -863,70 +550,9 @@
       "family": "transformers",
       "artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\AfroXLMR_FineTuned\\model.safetensors",
       "artifact_exists": true,
-      "loaded": true,
-      "inference_ok": true,
-      "metrics": {
-        "accuracy": 0.8156996587030717,
-        "precision": 0.8164971805921297,
-        "recall": 0.8156996587030717,
-        "f1": 0.8156758046356828,
-        "macro_f1": 0.8156936951862245,
-        "confusion_matrix": [
-          [
-            356,
-            91
-          ],
-          [
-            71,
-            361
-          ]
-        ]
-      },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.8156996587030717,
-          "reported": 0.8156996587030717,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.8164971805921297,
-          "reported": 0.8164971805921297,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.8156996587030717,
-          "reported": 0.8156996587030717,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.8156758046356828,
-          "reported": 0.8156758046356828,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.8156936951862245,
-          "reported": 0.8156936951862245,
-          "delta": 0.0
-        }
-      },
-      "sample_predictions": [
-        {
-          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
-          "prediction": "AI",
-          "probabilities": {
-            "AI": 0.8776848316192627,
-            "HUMAN": 0.12231512367725372
-          }
-        },
-        {
-          "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
-          "prediction": "HUMAN",
-          "probabilities": {
-            "AI": 0.06858459860086441,
-            "HUMAN": 0.9314153790473938
-          }
-        }
-      ]
+      "loaded": false,
+      "inference_ok": false,
+      "error": "OSError(22, 'Invalid argument')"
     },
     {
       "experiment": "experiment_2_stopwords_removed",
@@ -934,70 +560,9 @@
       "family": "transformers",
       "artifact": "experiments\\experiment_2_stopwords_removed\\models\\transformers\\AfriBERTa_FineTuned\\model.safetensors",
       "artifact_exists": true,
-      "loaded": true,
-      "inference_ok": true,
-      "metrics": {
-        "accuracy": 0.8703071672354948,
-        "precision": 0.8705232263553886,
-        "recall": 0.8703071672354948,
-        "f1": 0.8702527303595096,
-        "macro_f1": 0.8701846842645276,
-        "confusion_matrix": [
-          [
-            396,
-            51
-          ],
-          [
-            63,
-            369
-          ]
-        ]
-      },
-      "reported_comparison": {
-        "accuracy": {
-          "actual": 0.8703071672354948,
-          "reported": 0.8703071672354948,
-          "delta": 0.0
-        },
-        "precision": {
-          "actual": 0.8705232263553886,
-          "reported": 0.8705232263553886,
-          "delta": 0.0
-        },
-        "recall": {
-          "actual": 0.8703071672354948,
-          "reported": 0.8703071672354948,
-          "delta": 0.0
-        },
-        "f1": {
-          "actual": 0.8702527303595096,
-          "reported": 0.8702527303595096,
-          "delta": 0.0
-        },
-        "macro_f1": {
-          "actual": 0.8701846842645276,
-          "reported": 0.8701846842645276,
-          "delta": 0.0
-        }
-      },
-      "sample_predictions": [
-        {
-          "text": "waxbarashada casriga ah waxay ardayda siin kartaa fursado cusub oo ay ku hormariyaan aqoontooda",
-          "prediction": "AI",
-          "probabilities": {
-            "AI": 0.9338341355323792,
-            "HUMAN": 0.06616585701704025
-          }
-        },
-        {
-          "text": "maanta waxaan suuqa ka soo iibiyay khudaar kadibna guriga ayaan ku laabtay",
-          "prediction": "HUMAN",
-          "probabilities": {
-            "AI": 0.011513161472976208,
-            "HUMAN": 0.9884868860244751
-          }
-        }
-      ]
+      "loaded": false,
+      "inference_ok": false,
+      "error": "OSError(22, 'Invalid argument')"
     }
   ]
 }

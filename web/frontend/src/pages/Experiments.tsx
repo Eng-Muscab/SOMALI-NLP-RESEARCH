@@ -16,7 +16,7 @@ interface AiStats { total: number; categories: AiCategoryStat[]; tool_totals: { 
 interface ClaudeWord { word: string; score: number; count: number }
 interface AiSample { text: string; category: string; ai_tool: string }
 interface WordCloudWord { word: string; count: number; weight: number }
-type WordCloudData = Record<'Claude' | 'ChatGPT' | 'Gemini' | 'Human', WordCloudWord[]>
+type WordCloudData = Record<string, WordCloudWord[]>
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 interface ComparisonRow {
@@ -163,10 +163,10 @@ export default function Experiments() {
   const [aiStats, setAiStats]       = useState<AiStats | null>(null)
   const [claudeWords, setClaudeWords] = useState<ClaudeWord[]>([])
   const [aiSamples, setAiSamples]   = useState<AiSample[]>([])
-  const [sampleTool, setSampleTool] = useState<'Claude' | 'ChatGPT' | 'Gemini'>('Claude')
+  const [sampleTool, setSampleTool] = useState<string>('Claude')
   const [dataTab, setDataTab]       = useState<'overview' | 'words' | 'samples' | 'wordcloud'>('overview')
   const [wordCloudData, setWordCloudData] = useState<WordCloudData | null>(null)
-  const [wcSource, setWcSource]     = useState<'Claude' | 'ChatGPT' | 'Gemini' | 'Human'>('Claude')
+  const [wcSource, setWcSource]     = useState<string>('Claude')
 
   const { showToast } = useToast()
 
@@ -198,7 +198,7 @@ export default function Experiments() {
         .then(r => setAiStats(r.data))
         .catch(() => {})
 
-      api.get<ClaudeWord[]>('/experiments/dataset/claude-words', { params: { limit: 15 } })
+      api.get<ClaudeWord[]>('/experiments/dataset/ai-words', { params: { limit: 15 } })
         .then(r => setClaudeWords(Array.isArray(r.data) ? r.data : []))
         .catch(() => {})
 
@@ -207,7 +207,13 @@ export default function Experiments() {
         .catch(() => {})
 
       api.get<WordCloudData>('/experiments/dataset/wordcloud', { params: { limit: 80 } })
-        .then(r => setWordCloudData(r.data))
+        .then(r => {
+          setWordCloudData(r.data)
+          if (r.data && Object.keys(r.data).length > 0) {
+            setWcSource(Object.keys(r.data)[0])
+            setSampleTool(Object.keys(r.data).filter(k => k !== 'Human')[0] || 'AI')
+          }
+        })
         .catch(() => {})
     })
   }, [showToast])
@@ -245,7 +251,7 @@ export default function Experiments() {
     })
   }, [comparison])
 
-  const fetchSamples = (tool: 'Claude' | 'ChatGPT' | 'Gemini') => {
+  const fetchSamples = (tool: string) => {
     setSampleTool(tool)
     import('../services/api').then(({ default: api }) =>
       api.get<AiSample[]>('/experiments/dataset/samples', { params: { tool, limit: 5 } })
@@ -347,19 +353,20 @@ export default function Experiments() {
             <div className="p-6 space-y-5">
               {/* Tool totals */}
               <div className="grid grid-cols-3 gap-3">
-                {[
-                  { tool: 'Claude', color: 'from-violet-500 to-purple-600', icon: Bot },
-                  { tool: 'ChatGPT', color: 'from-emerald-500 to-teal-600', icon: MessageSquare },
-                  { tool: 'Gemini', color: 'from-blue-500 to-cyan-600', icon: Sparkles },
-                ].map(({ tool, color, icon: Icon }) => {
-                  const t = aiStats.tool_totals.find(x => x.tool === tool)
+                {aiStats.tool_totals.map((t) => {
+                  let color = 'from-amber-500 to-orange-600';
+                  let Icon = Sparkles;
+                  if (t.tool === 'Claude') { color = 'from-violet-500 to-purple-600'; Icon = Bot; }
+                  else if (t.tool === 'ChatGPT') { color = 'from-emerald-500 to-teal-600'; Icon = MessageSquare; }
+                  else if (t.tool === 'Gemini') { color = 'from-blue-500 to-cyan-600'; Icon = Sparkles; }
+                  
                   return (
-                    <div key={tool} className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800/40">
+                    <div key={t.tool} className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800/40">
                       <div className={`mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${color}`}>
                         <Icon size={14} className="text-white" />
                       </div>
-                      <p className="text-xl font-black text-neutral-900 dark:text-white">{t?.count.toLocaleString() ?? 0}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{tool}</p>
+                      <p className="text-xl font-black text-neutral-900 dark:text-white">{t.count.toLocaleString()}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{t.tool}</p>
                     </div>
                   )
                 })}
@@ -368,13 +375,13 @@ export default function Experiments() {
               {/* Per-category bar chart */}
               {(() => {
                 const totalAllAI = aiStats.categories.reduce(
-                  (s, c) => s + (c.Claude || 0) + (c.ChatGPT || 0) + (c.Gemini || 0), 0
+                  (s, c) => s + aiStats.tool_totals.reduce((sum, t) => sum + (Number(c[t.tool as keyof typeof c]) || 0), 0), 0
                 )
                 const renderTopLabel = (props: any) => {
                   const { x, y, width, index } = props
                   const cat = aiStats.categories[index]
                   if (!cat) return null
-                  const count = (cat.Claude || 0) + (cat.ChatGPT || 0) + (cat.Gemini || 0)
+                  const count = aiStats.tool_totals.reduce((sum, t) => sum + (Number(cat[t.tool as keyof typeof cat]) || 0), 0)
                   if (!count) return null
                   const pct = totalAllAI > 0 ? Math.round(count / totalAllAI * 100) : 0
                   return (
@@ -394,11 +401,18 @@ export default function Experiments() {
                           <YAxis tick={{ fontSize: 10 }} />
                           <Tooltip contentStyle={{ fontSize: 11, borderRadius: 10 }} />
                           <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} iconType="square" iconSize={10} />
-                          <Bar dataKey="Claude"  stackId="a" fill="#8b5cf6" radius={[0,0,0,0]} />
-                          <Bar dataKey="ChatGPT" stackId="a" fill="#10b981" radius={[0,0,0,0]} />
-                          <Bar dataKey="Gemini"  stackId="a" fill="#3b82f6" radius={[4,4,0,0]}>
-                            <LabelList content={renderTopLabel} />
-                          </Bar>
+                          {aiStats.tool_totals.map((t, i) => {
+                            let fill = '#f59e0b'
+                            if (t.tool === 'Claude') fill = '#8b5cf6'
+                            else if (t.tool === 'ChatGPT') fill = '#10b981'
+                            else if (t.tool === 'Gemini') fill = '#3b82f6'
+                            const isLast = i === aiStats.tool_totals.length - 1;
+                            return (
+                              <Bar key={t.tool} dataKey={t.tool} stackId="a" fill={fill} radius={isLast ? [4,4,0,0] : [0,0,0,0]}>
+                                {isLast && <LabelList content={renderTopLabel} />}
+                              </Bar>
+                            )
+                          })}
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -408,11 +422,11 @@ export default function Experiments() {
             </div>
           )}
 
-          {/* ── Words tab: Claude-specific words ── */}
+          {/* ── Words tab: AI-specific words ── */}
           {dataTab === 'words' && (
             <div className="p-6">
               <p className="mb-4 text-[11px] text-neutral-500 dark:text-neutral-400">
-                Words significantly more frequent in <strong className="text-violet-600 dark:text-violet-400">Claude-generated</strong> articles compared to ChatGPT & Gemini (relative frequency ratio).
+                Words significantly more frequent in <strong className="text-violet-600 dark:text-violet-400">AI-generated</strong> articles compared to Human-written ones (relative frequency ratio).
               </p>
               {claudeWords.length === 0 ? (
                 <p className="text-sm text-neutral-400">No data available</p>
@@ -449,17 +463,19 @@ export default function Experiments() {
               {/* Source selector */}
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mr-1">Source:</span>
-                {([
-                  { key: 'Claude',  bg: 'bg-violet-500',  ring: 'ring-violet-400' },
-                  { key: 'ChatGPT', bg: 'bg-emerald-500', ring: 'ring-emerald-400' },
-                  { key: 'Gemini',  bg: 'bg-blue-500',    ring: 'ring-blue-400' },
-                  { key: 'Human',   bg: 'bg-amber-500',   ring: 'ring-amber-400' },
-                ] as const).map(({ key, bg, ring }) => (
-                  <button key={key} onClick={() => setWcSource(key)}
-                    className={`rounded-full px-4 py-1.5 text-[11px] font-bold text-white transition-all ${bg} ${wcSource === key ? `ring-2 ${ring} ring-offset-1 scale-105` : 'opacity-60 hover:opacity-90'}`}>
-                    {key}
-                  </button>
-                ))}
+                {wordCloudData && Object.keys(wordCloudData).map((key) => {
+                  let bg = 'bg-amber-500'; let ring = 'ring-amber-400';
+                  if (key === 'Claude') { bg = 'bg-violet-500'; ring = 'ring-violet-400'; }
+                  else if (key === 'ChatGPT') { bg = 'bg-emerald-500'; ring = 'ring-emerald-400'; }
+                  else if (key === 'Gemini') { bg = 'bg-blue-500'; ring = 'ring-blue-400'; }
+                  
+                  return (
+                    <button key={key} onClick={() => setWcSource(key)}
+                      className={`rounded-full px-4 py-1.5 text-[11px] font-bold text-white transition-all ${bg} ${wcSource === key ? `ring-2 ${ring} ring-offset-1 scale-105` : 'opacity-60 hover:opacity-90'}`}>
+                      {key}
+                    </button>
+                  )
+                })}
               </div>
 
               {/* Cloud */}
@@ -471,6 +487,7 @@ export default function Experiments() {
                   ChatGPT: ['#059669','#10b981','#34d399','#6ee7b7','#047857','#065f46'],
                   Gemini:  ['#1d4ed8','#3b82f6','#60a5fa','#93c5fd','#1e40af','#1e3a8a'],
                   Human:   ['#b45309','#d97706','#f59e0b','#fcd34d','#92400e','#78350f'],
+                  AI:      ['#f59e0b','#d97706','#b45309','#92400e','#78350f','#fcd34d'],
                 }
                 const words = wordCloudData[wcSource] ?? []
                 const maxW = words[0]?.weight ?? 1
@@ -505,7 +522,7 @@ export default function Experiments() {
               {/* Legend / stats */}
               {wordCloudData && (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(['Claude', 'ChatGPT', 'Gemini', 'Human'] as const).map(src => {
+                  {Object.keys(wordCloudData).map(src => {
                     const total = (wordCloudData[src] ?? []).reduce((s, w) => s + w.count, 0)
                     const palette: Record<string, string> = {
                       Claude: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
@@ -515,7 +532,7 @@ export default function Experiments() {
                     }
                     return (
                       <button key={src} onClick={() => setWcSource(src)}
-                        className={`rounded-xl p-3 text-left transition-all ${wcSource === src ? 'ring-2 ring-offset-1 ' + (src === 'Claude' ? 'ring-violet-400' : src === 'ChatGPT' ? 'ring-emerald-400' : src === 'Gemini' ? 'ring-blue-400' : 'ring-amber-400') : ''} ${palette[src]}`}>
+                        className={`rounded-xl p-3 text-left transition-all ${wcSource === src ? 'ring-2 ring-offset-1 ' + (src === 'Claude' ? 'ring-violet-400' : src === 'ChatGPT' ? 'ring-emerald-400' : src === 'Gemini' ? 'ring-blue-400' : 'ring-amber-400') : ''} ${palette[src] || palette.Human}`}>
                         <div className="text-[11px] font-bold">{src}</div>
                         <div className="text-[10px] opacity-70">{(wordCloudData[src] ?? []).length} words · {total.toLocaleString()} total</div>
                       </button>
@@ -531,12 +548,12 @@ export default function Experiments() {
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Show samples from:</span>
-                {(['Claude', 'ChatGPT', 'Gemini'] as const).map(tool => (
-                  <button key={tool} onClick={() => fetchSamples(tool)}
+                {aiStats.tool_totals.map(t => (
+                  <button key={t.tool} onClick={() => fetchSamples(t.tool)}
                     className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
-                      sampleTool === tool ? 'bg-violet-500 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300'
+                      sampleTool === t.tool ? 'bg-violet-500 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300'
                     }`}>
-                    {tool}
+                    {t.tool}
                   </button>
                 ))}
               </div>
@@ -586,7 +603,7 @@ export default function Experiments() {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" vertical={false} />
                           <XAxis dataKey="name" tick={{ fontSize: 8 }} angle={-35} textAnchor="end" interval={0} />
                           <YAxis domain={[75, 100]} tick={{ fontSize: 9 }} tickFormatter={v => `${v}%`} />
-                          <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={{ fontSize: 11, borderRadius: 10 }} />
+                          <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} contentStyle={{ fontSize: 11, borderRadius: 10 }} />
                           <Bar dataKey="Exp 1" fill={c1} radius={[3,3,0,0]} maxBarSize={28} />
                           <Bar dataKey="Exp 2" fill={c2} radius={[3,3,0,0]} maxBarSize={28} />
                         </BarChart>
@@ -679,7 +696,7 @@ export default function Experiments() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" horizontal={false} />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="rgba(148,163,184,0.4)" tickFormatter={v => `${v}%`} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={110} stroke="rgba(148,163,184,0.4)" />
-                  <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
                   <Bar dataKey="accuracy" radius={[0, 4, 4, 0]}
                     fill="url(#accGrad)"
                   />
@@ -772,7 +789,7 @@ export default function Experiments() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <span className="w-14 text-right font-mono text-xs font-black text-neutral-800 dark:text-neutral-200">
-                          {row.accuracy.toFixed(2)}%
+                          {row.accuracy.toFixed(1)}%
                         </span>
                         <div className="relative h-2 w-20 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
                           <motion.div
@@ -796,12 +813,12 @@ export default function Experiments() {
 
                     {/* Precision */}
                     <td className="px-5 py-3.5 font-mono text-xs text-neutral-500 dark:text-neutral-400">
-                      {row.precision.toFixed(2)}%
+                      {row.precision.toFixed(1)}%
                     </td>
 
                     {/* Recall */}
                     <td className="px-5 py-3.5 font-mono text-xs text-neutral-500 dark:text-neutral-400">
-                      {row.recall.toFixed(2)}%
+                      {row.recall.toFixed(1)}%
                     </td>
                   </motion.tr>
                 )

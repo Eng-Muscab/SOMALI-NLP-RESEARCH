@@ -2,8 +2,6 @@
 
 Generated from `LinearSVC_TFIDF` for the binary `AI` vs `HUMAN` task.
 
-- `shap_like_feature_importance.csv`: lightweight linear proxy (legacy).
-- `shap/shap_global_importance.csv`: package-level SHAP mean absolute values.
-- `shap/shap_summary_plot.png`: SHAP summary plot from the `shap` package.
-- `lime/lime_explanation_*.html`: local explanations from the `lime` package.
+- `shap_like_feature_importance.csv`: top linear TF-IDF features per class.
 - `error_analysis_sample.csv`: held-out test errors for review.
+- `lime/lime_explanation_*.html`: lightweight local explanations for sample predictions.

@@ -1,0 +1,37 @@
+[Unit]
+Description=Somali AI-generated text detection platform
+After=network.target mongod.service
+Wants=mongod.service
+
+[Service]
+Type=exec
+User=__APP_USER__
+WorkingDirectory=__APP_DIR__/web
+EnvironmentFile=__APP_DIR__/web/backend/.env
+
+# One worker, deliberately. Each worker holds its own copy of every model it has
+# been asked for, so a second worker would double the memory for throughput this
+# platform does not need -- one worker already serves ~21 predictions a second on
+# the default classifier.
+ExecStart=__APP_DIR__/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000 --workers 1
+
+# Loading the catalogue and the sklearn models takes ~22 s on this hardware, and
+# the first request for a cold transformer adds a few seconds more; systemd must
+# not call that a failed start.
+TimeoutStartSec=300
+Restart=always
+RestartSec=5
+
+# The service reads models and writes uploads; nothing else on the box is its
+# business.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=somali-nlp
+
+[Install]
+WantedBy=multi-user.target

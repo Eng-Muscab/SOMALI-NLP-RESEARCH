@@ -1,15 +1,26 @@
 {
   "dataset": {
-    "raw_rows": 8628,
+    "raw_rows": 11556,
     "task": "label",
     "label_description": "binary labels: AI, HUMAN",
-    "invalid_or_empty_rows": 0,
-    "ambiguous_duplicate_rows_removed": 0,
-    "same_label_duplicate_rows_removed": 133,
-    "dataset_rows": 8495,
+    "invalid_or_empty_rows": 1,
+    "ambiguous_duplicate_rows_removed": 12,
+    "same_label_duplicate_rows_removed": 161,
+    "dataset_rows": 11382,
     "label_counts": {
-      "AI": 4296,
-      "HUMAN": 4199
+      "HUMAN": 5693,
+      "AI": 5689
+    },
+    "category_counts": {
+      "Politics": 2722,
+      "Sports": 1850,
+      "Health": 1226,
+      "Entertainment": 1174,
+      "Technology": 1136,
+      "Business": 1104,
+      "Education": 1092,
+      "Religion": 1074,
+      "Unknown": 4
     }
   },
   "experiment": {
@@ -17,36 +28,67 @@
     "config": "experiments\\experiment_2_stopwords_removed\\config.yaml",
     "splits": {
       "train": {
-        "rows": 5946,
+        "rows": 7967,
         "label_counts": {
-          "AI": 3007,
-          "HUMAN": 2939
+          "HUMAN": 3985,
+          "AI": 3982
         },
         "ai_type_counts": {
-          "AI": 3007,
-          "HUMAN": 2939
+          "HUMAN": 3985,
+          "AI": 3982
+        },
+        "category_counts": {
+          "Politics": 1902,
+          "Sports": 1272,
+          "Health": 840,
+          "Entertainment": 839,
+          "Education": 790,
+          "Religion": 783,
+          "Technology": 779,
+          "Business": 758,
+          "Unknown": 4
         }
       },
       "val": {
-        "rows": 1274,
+        "rows": 1706,
         "label_counts": {
-          "AI": 644,
-          "HUMAN": 630
+          "AI": 853,
+          "HUMAN": 853
         },
         "ai_type_counts": {
-          "AI": 644,
-          "HUMAN": 630
+          "AI": 853,
+          "HUMAN": 853
+        },
+        "category_counts": {
+          "Politics": 427,
+          "Sports": 291,
+          "Health": 187,
+          "Business": 175,
+          "Technology": 173,
+          "Entertainment": 168,
+          "Education": 146,
+          "Religion": 139
         }
       },
       "test": {
-        "rows": 1275,
+        "rows": 1708,
         "label_counts": {
-          "AI": 645,
-          "HUMAN": 630
+          "AI": 854,
+          "HUMAN": 854
         },
         "ai_type_counts": {
-          "AI": 645,
-          "HUMAN": 630
+          "AI": 854,
+          "HUMAN": 854
+        },
+        "category_counts": {
+          "Politics": 393,
+          "Sports": 287,
+          "Health": 199,
+          "Technology": 184,
+          "Business": 171,
+          "Entertainment": 167,
+          "Education": 156,
+          "Religion": 151
         }
       }
     }

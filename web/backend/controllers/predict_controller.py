@@ -65,7 +65,12 @@ def _somali_indicator_words() -> frozenset[str]:
     text of any length reliably contains several of these; other languages don't."""
     global _SOMALI_INDICATOR_WORDS
     if _SOMALI_INDICATOR_WORDS is None:
-        from experiments.run_stopword_ablation import SOMALI_FUNCTION_WORDS
+        # Straight from the module that defines the 483 words, not from
+        # run_stopword_ablation, which merely re-exports them: that is a research
+        # script and imports matplotlib, seaborn and yaml at module level. Pulling
+        # a word list through it made every prediction on a server without those
+        # plotting libraries fail with ModuleNotFoundError.
+        from experiments.somali_stopwords import SOMALI_FUNCTION_WORDS
 
         _SOMALI_INDICATOR_WORDS = frozenset(SOMALI_FUNCTION_WORDS)
     return _SOMALI_INDICATOR_WORDS

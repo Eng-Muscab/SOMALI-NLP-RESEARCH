@@ -48,9 +48,14 @@ rsh() { ssh "${SSH_OPTS[@]}" "$TARGET" "$@"; }
 
 # tar over ssh: one connection per call, directory structure preserved, and no
 # dependency on rsync being installed anywhere.
+#
+# --owner=0 --group=0 and --no-same-owner are not cosmetic. Windows tar stamps
+# the archive with Windows UIDs, and tar running as root on the far end tries to
+# restore them, fails on every entry, and exits non-zero even though the files
+# landed -- which under `set -e` aborts the transfer.
 send() {
   local root="$1"; shift
-  tar czf - -C "$root" "$@" | rsh "mkdir -p '$APP_DIR' && tar xzf - -C '$APP_DIR'"
+  tar czf - --owner=0 --group=0 -C "$root" "$@" | rsh "mkdir -p '$APP_DIR' && tar xzf - --no-same-owner -C '$APP_DIR'"
 }
 
 human() { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 bytes"; }
@@ -145,9 +150,10 @@ if [[ "$ONLY" != "tier1" ]]; then
     started=$(date +%s)
     # The training log is a few KB of loss curves the platform never reads, and
     # checkpoint-* directories are optimizer state from mid-training.
-    tar czf - --exclude='*_training_log.csv' --exclude='checkpoint-*' --exclude='optimizer.pt' \
+    tar czf - --owner=0 --group=0 \
+        --exclude='*_training_log.csv' --exclude='checkpoint-*' --exclude='optimizer.pt' \
         -C . "$dir" \
-      | rsh "tar xzf - -C '$APP_DIR'"
+      | rsh "tar xzf - --no-same-owner -C '$APP_DIR'"
     elapsed=$(( $(date +%s) - started ))
     info "$label -- done in $((elapsed / 60))m $((elapsed % 60))s"
 

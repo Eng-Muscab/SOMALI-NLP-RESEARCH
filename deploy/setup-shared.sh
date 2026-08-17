@@ -115,7 +115,10 @@ fi
 # Cap the cache before the first start. WiredTiger's default on this box is
 # 2.5 GB; the platform's own peak is 1.7 GB, and the database holds users, a
 # prediction log and an activity log -- a few MB. 256 MB is generous.
-if ! grep -q 'wiredTiger' /etc/mongod.conf; then
+# Match on cacheSizeGB, not on `wiredTiger`: the stock Ubuntu mongod.conf ships
+# a commented-out `#  wiredTiger:` stanza, and grepping for the word alone finds
+# that comment and silently concludes the cap is already in place.
+if ! grep -qE '^[[:space:]]+cacheSizeGB' /etc/mongod.conf; then
   cp /etc/mongod.conf /etc/mongod.conf.pre-somali-nlp
   sed -i "/^storage:/a\\  wiredTiger:\\n    engineConfig:\\n      cacheSizeGB: ${MONGO_CACHE_GB}" /etc/mongod.conf
   echo "    capped WiredTiger cache at ${MONGO_CACHE_GB} GB"
@@ -138,20 +141,35 @@ fi
 
 # ---------------------------------------------------------------------------
 log "Swap"
-# This box has none. The platform's ceiling is bounded by the model cache rather
-# than by traffic, so swap is never expected to be touched -- it is here so that
-# an unexpected spike is a slow request instead of the OOM killer choosing the
-# largest process on the box, which would be an ERP.
-if ! swapon --show | grep -q /swapfile; then
-  fallocate -l "${SWAP_GB}G" /swapfile
-  chmod 600 /swapfile
-  mkswap -q /swapfile
-  swapon /swapfile
+# Wanted, but not required. Swap is here so that an unexpected spike is a slow
+# request rather than the OOM killer choosing the largest process on the box,
+# which would be an ERP. The platform's ceiling is bounded by the model cache
+# rather than by traffic, though, so a box with headroom does not need it.
+#
+# Containerised VPS platforms -- OpenVZ, LXC, Virtuozzo -- share the host kernel
+# and refuse swapon outright. That is a fact about the host, not a failure of
+# this install, so it is reported and stepped over rather than being fatal.
+if swapon --show 2>/dev/null | grep -q /swapfile; then
+  echo "    swap: already present"
+elif fallocate -l "${SWAP_GB}G" /swapfile 2>/dev/null \
+     && chmod 600 /swapfile \
+     && mkswap -q /swapfile 2>/dev/null \
+     && swapon /swapfile 2>/dev/null; then
   grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  echo "    swap: ${SWAP_GB} GB added"
+else
+  rm -f /swapfile
+  warn "swapon is not permitted on this host (containerised kernel); continuing without swap"
+  echo "    swap: none -- $(free -m | awk '/^Mem:/ {print $7}') MB available against a ~2200 MB peak"
 fi
-# Prefer reclaiming cache over swapping the ERPs' working set out from under them.
-sysctl -qw vm.swappiness=10
-grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+
+# Prefer reclaiming cache over swapping the ERPs' working set out from under
+# them. An unprivileged container refuses this too; it is an optimisation.
+if sysctl -qw vm.swappiness=10 2>/dev/null; then
+  grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+else
+  echo "    vm.swappiness: not settable in this container, skipped"
+fi
 
 # ---------------------------------------------------------------------------
 log "Application user and source"
@@ -177,6 +195,12 @@ cd "$APP_DIR"
 ./.venv/bin/pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
 ./.venv/bin/pip install --quiet -r web/backend/requirements.txt
 ./.venv/bin/pip install --quiet "tensorflow-cpu>=2.16" transformers safetensors
+# Only the archive-the-submitted-article step needs these: it reuses clean_text()
+# from experiments/run_balanced_experiments.py so that archived rows match the
+# training pipeline exactly, and that research script imports matplotlib, seaborn
+# and yaml at module level. The call sits in a try/except, so leaving them out
+# costs the archive rather than the prediction -- but the feature is cheap to keep.
+./.venv/bin/pip install --quiet seaborn matplotlib pyyaml
 
 # ---------------------------------------------------------------------------
 log "Configuration"

@@ -277,12 +277,30 @@ class MLService:
             elif path.name in ["model.safetensors", "pytorch_model.bin"]:
                 from transformers import pipeline
                 model = pipeline("text-classification", model=str(path.parent))
+                model.tokenizer.model_max_length = self._sequence_limit(model.model.config)
                 self._resident[key] = {"type": "transformers", "model": model}
             self.model_paths.setdefault(key, str(path))
             self._resident.move_to_end(key)
         except Exception as exc:
             self.load_errors[str(path)] = str(exc)
             logger.exception("Failed to load model artifact %s", path)
+
+    @staticmethod
+    def _sequence_limit(config: Any) -> int:
+        """How many tokens this checkpoint can actually be fed.
+
+        None of the ten fine-tuned checkpoints records a limit in
+        tokenizer_config.json, so the tokenizer reports the sentinel
+        model_max_length of ~1e30 and `truncation=True` has no length to truncate
+        to: a 1,029-word article produced 1,532 tokens and the forward pass died
+        with `index 514 is out of bounds`. The real bound is the position
+        embedding table, and the RoBERTa family offsets positions past the
+        padding index, so two of its 514 slots are not usable sequence.
+        """
+        limit = getattr(config, "max_position_embeddings", 512)
+        if getattr(config, "model_type", "") in {"roberta", "xlm-roberta", "camembert"}:
+            limit -= 2
+        return limit
 
     def _model_key(self, path: Path) -> str:
         experiment = next(
@@ -363,7 +381,11 @@ class MLService:
                 else:
                     raise InferenceError("Tokenizer not found for Keras model")
             elif model_type == "transformers":
-                result = model(text)[0]
+                # truncation is what keeps a long article from overflowing the
+                # position embeddings; _sequence_limit gave the tokenizer the bound
+                # to apply. The verdict then reflects the leading 512 tokens, which
+                # is also what the checkpoints saw during fine-tuning.
+                result = model(text, truncation=True)[0]
                 raw_label = result["label"]
                 prediction = self._map_prediction(model_type, raw_label)
                 confidence = float(result["score"])
@@ -376,6 +398,11 @@ class MLService:
                 "model": model_key,
             }
         except Exception as exc:
+            # `from exc` keeps the chain, but nothing ever printed it: the caller
+            # turns this into a 422 whose body is the message above, so a genuine
+            # bug reached the user as "Unable to run inference" and left no trace
+            # in the journal to diagnose it by. Log the cause here.
+            logger.exception("Inference failed for model %s", model_key)
             raise InferenceError("Unable to run inference for the provided text") from exc
 
     def _probabilities(

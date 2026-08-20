@@ -1,3 +1,5 @@
+import logging
+import os
 from datetime import datetime, timezone
 
 from bson import ObjectId
@@ -8,6 +10,8 @@ from ..database.mongo import get_database
 from ..models.user import ROLE_LIMITS, UserRole
 from ..utils.security import hash_password, verify_password
 from ..utils.jwt import create_access_token
+
+logger = logging.getLogger(__name__)
 
 
 async def ensure_user_indexes() -> None:
@@ -21,18 +25,50 @@ async def ensure_user_indexes() -> None:
 
 
 async def ensure_demo_user() -> None:
+    """Seed the shared demo account, if this deployment is configured to have one.
+
+    The account exists so a supervisor or examiner can sign in without being
+    registered by hand. It used to be created unconditionally as SUPER_ADMIN with
+    the password `Demo12345!` written in this file -- and this repository is
+    public, so on a reachable deployment that published a super-administrator to
+    anyone who read the source: delete any user, change any role, export the
+    submitted-article corpus. Worse, it ran on every start-up and reset the
+    password, so changing it in the database did not hold.
+
+    A deployment now opts in. Set DEMO_USER_PASSWORD to enable the account, and
+    DEMO_USER_ROLE to decide how much it may do -- `viewer` is enough to sign in
+    and classify text, which is what a demonstration needs. With no password set,
+    production seeds nothing; outside production the old convenience is kept so
+    that a local checkout still logs straight in.
+    """
     db = get_database()
     await ensure_user_indexes()
 
-    demo_email = "demo@somalinlp.io"
-    demo_password = "Demo12345!"
-    limits = ROLE_LIMITS[UserRole.SUPER_ADMIN]
+    demo_email = os.getenv("DEMO_USER_EMAIL", "demo@somalinlp.io")
+    demo_password = os.getenv("DEMO_USER_PASSWORD", "")
+    demo_role = os.getenv("DEMO_USER_ROLE", UserRole.VIEWER)
+
+    if not demo_password:
+        if settings.environment == "production":
+            logger.info(
+                "No DEMO_USER_PASSWORD set; not seeding a demo account. "
+                "Create administrators with deploy/make-admin.sh."
+            )
+            return
+        demo_password = "Demo12345!"
+        demo_role = UserRole.SUPER_ADMIN
+
+    if demo_role not in set(ROLE_LIMITS):
+        logger.warning("DEMO_USER_ROLE=%r is not a role; falling back to viewer", demo_role)
+        demo_role = UserRole.VIEWER
+
+    limits = ROLE_LIMITS[demo_role]
 
     existing = await db.users.find_one({"email": demo_email})
     update_doc = {
         "password": hash_password(demo_password),
         "is_active": True,
-        "role": UserRole.SUPER_ADMIN,
+        "role": demo_role,
         "name": "Demo Admin",
         "daily_prediction_limit": limits["daily"],
         "monthly_prediction_limit": limits["monthly"],
